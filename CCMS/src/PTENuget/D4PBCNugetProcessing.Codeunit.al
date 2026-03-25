@@ -3,6 +3,7 @@ namespace D4P.CCMS.Nuget;
 using D4P.CCMS.PTEApps;
 using D4P.CCMS.Setup;
 using System.RestClient;
+using System.Utilities;
 codeunit 62008 "D4P BC Nuget Processing"
 {
     procedure GetPTEAppVersions(var PTEApp: Record "D4P BC PTE App")
@@ -135,6 +136,33 @@ codeunit 62008 "D4P BC Nuget Processing"
         exit(DownloadFromStream(Instream, DownloadDialogTitleLbl, '', '', FileName));
     end;
 
+    procedure DownloadPackageToStream(PTEAppVersion: Record "D4P BC PTE App Version"; var TempBlob: Codeunit "Temp Blob"): Boolean
+    var
+        BCDevOpsUpdate: Interface "D4P BC DevOps Update";
+        PTEApp: Record "D4P BC PTE App";
+        RestClient: Codeunit "Rest Client";
+        Response: Codeunit "HTTP Response Message";
+        NupkgInStream: InStream;
+        NupkgOutStream: OutStream;
+        TokenKey: Text[150];
+    begin
+        if not PTEApp.Get(PTEAppVersion."PTE ID") then
+            exit(false);
+
+        DevOpsUpdateFactory(BCDevOpsUpdate, PTEAppVersion.GetPTEAppDevOps());
+        TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment".AsInteger(), UpperCase(PTEApp."DevOps Organization"));
+        if BCDevOpsUpdate.HasToken(TokenKey) then
+            RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
+        Response := RestClient.Get(PTEAppVersion."Package Content Url");
+        ShowDebugMessage(StrSubstNo('HTTP %1 - %2', Response.GetHttpStatusCode(), PTEAppVersion."Package Content Url"), 'NuGet Package Download (Stream)');
+        if not Response.GetIsSuccessStatusCode() then
+            exit(false);
+
+        TempBlob.CreateOutStream(NupkgOutStream);
+        NupkgInStream := Response.GetContent().AsInStream();
+        CopyStream(NupkgOutStream, NupkgInStream);
+        exit(TempBlob.HasValue());
+    end;
 
     procedure TestConnection(DevOpsOrganization: Record "D4P BC DevOps Organization"): Boolean
     var

@@ -2,6 +2,8 @@ namespace D4P.CCMS.Environment;
 
 using D4P.CCMS.Extension;
 using D4P.CCMS.General;
+using D4P.CCMS.Nuget;
+using D4P.CCMS.PTEApps;
 using D4P.CCMS.Setup;
 using D4P.CCMS.Tenant;
 using System.IO;
@@ -564,8 +566,82 @@ codeunit 62000 "D4P BC Environment Mgt"
 
     procedure UploadExtension(var BCEnvironment: Record "D4P BC Environment")
     var
-        BCTenant: Record "D4P BC Tenant";
         TempBlob: Codeunit "Temp Blob";
+        UploadDialogTitleLbl: Label 'Select App File';
+        AppFileFilterLbl: Label 'App Files (*.app)|*.app';
+        EmptyFileErr: Label 'File content is empty. Please select a valid .app file.';
+        UploadSuccessMsg: Label 'Extension has been uploaded and installation has been scheduled.';
+        AppInStream: InStream;
+        AppOutStream: OutStream;
+        FileName: Text;
+    begin
+        TempBlob.CreateOutStream(AppOutStream);
+        if not UploadIntoStream(UploadDialogTitleLbl, '', AppFileFilterLbl, FileName, AppInStream) then
+            exit;
+        CopyStream(AppOutStream, AppInStream);
+        if not TempBlob.HasValue() then
+            Error(EmptyFileErr);
+
+        DeployExtensionToEnvironment(BCEnvironment, TempBlob);
+        Message(UploadSuccessMsg);
+    end;
+
+    procedure UploadPTEExtension(var BCEnvironment: Record "D4P BC Environment")
+    var
+        PTEApp: Record "D4P BC PTE App";
+        PTEAppVersion: Record "D4P BC PTE App Version";
+        NugetProcessing: Codeunit "D4P BC Nuget Processing";
+        TempBlob: Codeunit "Temp Blob";
+        DataCompression: Codeunit "Data Compression";
+        NupkgInStream: InStream;
+        AppOutStream: OutStream;
+        EntryList: List of [Text];
+        EntryName: Text;
+        NupkgTempBlob: Codeunit "Temp Blob";
+        NupkgOutStream: OutStream;
+        SelectAppErr: Label 'No PTE app selected.';
+        SelectVersionErr: Label 'No version selected.';
+        DownloadFailedErr: Label 'Failed to download the NuGet package.';
+        NoAppFileErr: Label 'No .app file found in the NuGet package.';
+        UploadSuccessMsg: Label 'PTE extension %1 v%2 has been uploaded and installation has been scheduled.', Comment = '%1 = App Name, %2 = Version';
+    begin
+        // 1. Select PTE App
+        if Page.RunModal(Page::"D4P BC PTE App List", PTEApp) <> Action::LookupOK then
+            Error(SelectAppErr);
+
+        // 2. Select Version
+        PTEAppVersion.SetRange("PTE ID", PTEApp."ID");
+        if Page.RunModal(Page::"D4P BC PTE App Version List", PTEAppVersion) <> Action::LookupOK then
+            Error(SelectVersionErr);
+
+        // 3. Download .nupkg from NuGet
+        if not NugetProcessing.DownloadPackageToStream(PTEAppVersion, NupkgTempBlob) then
+            Error(DownloadFailedErr);
+
+        // 4. Extract .app from .nupkg (ZIP)
+        NupkgTempBlob.CreateInStream(NupkgInStream);
+        DataCompression.OpenZipArchive(NupkgInStream, false);
+        DataCompression.GetEntryList(EntryList);
+
+        TempBlob.CreateOutStream(AppOutStream);
+        foreach EntryName in EntryList do
+            if EntryName.EndsWith('.app') then begin
+                DataCompression.ExtractEntry(EntryName, AppOutStream);
+                break;
+            end;
+        DataCompression.CloseZipArchive();
+
+        if not TempBlob.HasValue() then
+            Error(NoAppFileErr);
+
+        // 5. Upload to environment
+        DeployExtensionToEnvironment(BCEnvironment, TempBlob);
+        Message(UploadSuccessMsg, PTEApp."Name", PTEAppVersion."App Version");
+    end;
+
+    local procedure DeployExtensionToEnvironment(var BCEnvironment: Record "D4P BC Environment"; var TempBlob: Codeunit "Temp Blob")
+    var
+        BCTenant: Record "D4P BC Tenant";
         JObject: JsonObject;
         JToken: JsonToken;
         JArray: JsonArray;
@@ -575,34 +651,20 @@ codeunit 62000 "D4P BC Environment Mgt"
         FailedToUploadContentErr: Label 'Failed to upload extension content: %1', Comment = '%1 = Error message';
         FailedToTriggerErr: Label 'Failed to trigger deployment: %1', Comment = '%1 = Error message';
         NoCompaniesErr: Label 'No companies found in the environment.';
-        UploadSuccessMsg: Label 'Extension file has been uploaded. Check Extension Management in the environment for deployment status.';
-        UploadDialogTitleLbl: Label 'Select App File';
-        AppFileFilterLbl: Label 'App Files (*.app)|*.app';
-        EmptyFileErr: Label 'File content is empty. Please select a valid .app file.';
         AuthToken: SecretText;
         AppInStream: InStream;
-        AppOutStream: OutStream;
         CompanyId: Text;
         ETag: Text;
-        FileName: Text;
         ResponseText: Text;
         UploadSystemId: Text;
     begin
-        // 1. Pick the .app file and buffer it
-        TempBlob.CreateOutStream(AppOutStream);
-        if not UploadIntoStream(UploadDialogTitleLbl, '', AppFileFilterLbl, FileName, AppInStream) then
-            exit;
-        CopyStream(AppOutStream, AppInStream);
-        if not TempBlob.HasValue() then
-            Error(EmptyFileErr);
-
-        // 2. Authenticate
+        // 1. Authenticate
         BCTenant.Get(BCEnvironment."Customer No.", BCEnvironment."Tenant ID");
         AuthToken := APIHelper.GetAutomationApiOAuthToken(BCEnvironment."AAD Tenant ID", BCTenant."Client ID", BCTenant.GetClientSecret());
         if AuthToken.IsEmpty() then
             Error(FailedToObtainTokenErr);
 
-        // 3. Get first company ID
+        // 2. Get first company ID
         if not APIHelper.SendAutomationAPIRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
             'GET', '/api/microsoft/automation/v2.0/companies', '',
@@ -620,7 +682,7 @@ codeunit 62000 "D4P BC Environment Mgt"
         JObject.Get('id', JToken);
         CompanyId := JToken.AsValue().AsText();
 
-        // 4. Get or create extension upload entity
+        // 3. Get or create extension upload entity
         APIHelper.SendAutomationAPIRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
             'GET',
@@ -660,7 +722,7 @@ codeunit 62000 "D4P BC Environment Mgt"
             ETag := JToken.AsValue().AsText();
         end;
 
-        // 5. Upload .app file content
+        // 4. Upload .app file content
         TempBlob.CreateInStream(AppInStream);
         if not APIHelper.SendAutomationAPIBinaryRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
@@ -670,7 +732,7 @@ codeunit 62000 "D4P BC Environment Mgt"
         then
             Error(FailedToUploadContentErr, ResponseText);
 
-        // 6. Trigger deployment via Microsoft.NAV.upload action
+        // 5. Trigger deployment via Microsoft.NAV.upload action
         if not APIHelper.SendAutomationAPIRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
             'POST',
@@ -678,8 +740,6 @@ codeunit 62000 "D4P BC Environment Mgt"
             '', AuthToken, ResponseText)
         then
             Error(FailedToTriggerErr, ResponseText);
-
-        Message(UploadSuccessMsg);
     end;
 
     procedure CreateNewBCEnvironment(var BCTenant: Record "D4P BC Tenant"; EnvironmentName: Text[100]; Localization: Code[2]; EnvironmentType: Enum "D4P Environment Type")

@@ -155,6 +155,20 @@ page 62008 "D4P BC Installed Apps List"
                     EnvironmentManagement.UploadExtension(BCEnvironment);
                 end;
             }
+            action(UploadPTE)
+            {
+                Caption = 'Upload PTE';
+                Image = UpdateXML;
+                ToolTip = 'Select a PTE app and version from NuGet to upload and install on the environment.';
+                trigger OnAction()
+                var
+                    BCEnvironment: Record "D4P BC Environment";
+                    EnvironmentManagement: Codeunit "D4P BC Environment Mgt";
+                begin
+                    BCEnvironment.Get(Rec."Customer No.", Rec."Tenant ID", Rec."Environment Name");
+                    EnvironmentManagement.UploadPTEExtension(BCEnvironment);
+                end;
+            }
             action(DeleteAll)
             {
                 Caption = 'Delete All';
@@ -195,6 +209,9 @@ page 62008 "D4P BC Installed Apps List"
             {
             }
             actionref(UploadAppFilePromoted; UploadAppFile)
+            {
+            }
+            actionref(UploadPTEPromoted; UploadPTE)
             {
             }
             actionref(DeleteAllPromoted; DeleteAll)
