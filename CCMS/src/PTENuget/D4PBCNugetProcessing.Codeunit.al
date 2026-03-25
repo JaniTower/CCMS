@@ -34,7 +34,7 @@ codeunit 62008 "D4P BC Nuget Processing"
     begin
         if (ServiceTypeUrl = '') or (PTEApp."NuGet Package Name" = '') then
             exit;
-        TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment", UpperCase(PTEApp."DevOps Organization"));
+        TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment".AsInteger(), UpperCase(PTEApp."DevOps Organization"));
         if BCDevOpsUpdate.HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
         SearchURL := StrSubstNo(SearchURLLbl, ServiceTypeUrl, PTEApp."NuGet Package Name");
@@ -56,8 +56,10 @@ codeunit 62008 "D4P BC Nuget Processing"
         JsonArray := JsonToken.AsObject().GetArray('data');
         JsonArray.Get(0, JsonToken);
 
-        if JsonToken.AsObject().Contains('version') then
+        if JsonToken.AsObject().Contains('version') then begin
             PTEApp."Latest App Version" := JsonToken.AsObject().GetText('version');
+            PTEApp.Modify(true);
+        end;
 
         JsonArray := JsonToken.AsObject().GetArray('versions');
         foreach JsonToken in JsonArray do begin
@@ -65,13 +67,11 @@ codeunit 62008 "D4P BC Nuget Processing"
             PTEAppVersion.Init();
             PTEAppVersion."PTE ID" := PTEApp."ID";
             PTEAppVersion."App Version" := JsonToken.AsObject().GetText('version');
+            PTEAppVersion."Package Content Url" := GetPackageContentUrl(PTEApp, PTEAppVersion, JsonToken.AsObject().GetText('@id'), BCDevOpsUpdate);
             if PTEAppVersion.DoExists() then
                 PTEAppVersion.Modify(true)
             else
                 PTEAppVersion.Insert(true);
-
-            PTEAppVersion."Package Content Url" := GetPackageContentUrl(PTEApp, PTEAppVersion, JsonToken.AsObject().GetText('@id'), BCDevOpsUpdate);
-            PTEAppVersion.Modify(true);
         end;
     end;
 
@@ -81,7 +81,7 @@ codeunit 62008 "D4P BC Nuget Processing"
         JsonToken: JsonToken;
         TokenKey: Text[150];
     begin
-        TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment", UpperCase(PTEApp."DevOps Organization"));
+        TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment".AsInteger(), UpperCase(PTEApp."DevOps Organization"));
         if BCDevOpsUpdate.HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
         JsonToken := RestClient.GetAsJson(PackageVersionUrl);
@@ -89,6 +89,7 @@ codeunit 62008 "D4P BC Nuget Processing"
             exit('');
         if JsonToken.AsObject().Contains('packageContent') then
             exit(JsonToken.AsObject().GetText('packageContent'));
+        exit('');
     end;
 
     procedure DownloadPackageContent(PTEAppVersion: Record "D4P BC PTE App Version"): Boolean
@@ -105,7 +106,7 @@ codeunit 62008 "D4P BC Nuget Processing"
             exit(false);
 
         DevOpsUpdateFactory(BCDevOpsUpdate, PTEAppVersion.GetPTEAppDevOps());
-        TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment", UpperCase(PTEApp."DevOps Organization"));
+        TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment".AsInteger(), UpperCase(PTEApp."DevOps Organization"));
         if BCDevOpsUpdate.HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
         Response := RestClient.Get(PTEAppVersion."Package Content Url");
@@ -133,8 +134,9 @@ codeunit 62008 "D4P BC Nuget Processing"
         PTEApp."DevOps Environment" := DevOpsOrganization."DevOps Environment";
         PTEApp."DevOps Organization" := DevOpsOrganization.ID;
 
-        TokenKey := StrSubstNo('%1-%2', DevOpsOrganization."DevOps Environment", DevOpsOrganization.ID);
-        RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
+        TokenKey := DevOpsOrganization.GetTokenKey();
+        if BCDevOpsUpdate.HasToken(TokenKey) then
+            RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
         Response := RestClient.Get(BCDevOpsUpdate.GetNugetServiceURL(PTEApp));
         exit(Response.GetIsSuccessStatusCode());
     end;

@@ -39,8 +39,13 @@ table 62006 "D4P BC DevOps Organization"
     var
         TokenKey: Text;
     begin
-        TokenKey := StrSubstNo('%1-%2', Format(Rec."DevOps Environment"), Rec.ID);
+        TokenKey := GetTokenKey();
         if IsolatedStorage.Contains(TokenKey) then
             IsolatedStorage.Delete(TokenKey);
+    end;
+
+    procedure GetTokenKey(): Text
+    begin
+        exit(StrSubstNo('%1-%2', Rec."DevOps Environment".AsInteger(), Rec.ID));
     end;
 }

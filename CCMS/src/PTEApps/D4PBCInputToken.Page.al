@@ -17,6 +17,7 @@ page 62050 "D4P BC Input Token"
                     Caption = 'Personal Access Token';
                     ToolTip = 'Specifies the Personal Access Token for DevOps organization access.';
                     MultiLine = false;
+                    ExtendedDatatype = Masked;
                 }
             }
         }

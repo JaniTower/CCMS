@@ -19,6 +19,7 @@ table 62008 "D4P BC PTE Object Range"
         {
             Caption = 'PTE ID';
             ToolTip = 'Specifies the Per Tenant Extension''s ID.';
+            TableRelation = "D4P BC PTE App"."ID";
         }
 
         field(3; "Range From"; Integer)
@@ -30,6 +31,11 @@ table 62008 "D4P BC PTE Object Range"
         {
             Caption = 'Range To';
             ToolTip = 'Specifies the ending range for the PTE app.';
+            trigger OnValidate()
+            begin
+                if Rec."Range To" < Rec."Range From" then
+                    Error('Range To must be greater than or equal to Range From.');
+            end;
         }
     }
 
@@ -39,5 +45,6 @@ table 62008 "D4P BC PTE Object Range"
         {
             Clustered = true;
         }
+        key(PTEIDIdx; "PTE ID") { }
     }
 }

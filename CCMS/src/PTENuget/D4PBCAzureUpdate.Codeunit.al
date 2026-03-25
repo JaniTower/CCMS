@@ -7,11 +7,15 @@ codeunit 62004 "D4P BC Azure Update" implements "D4P BC DevOps Update"
 {
     procedure GetNugetServiceTypeUrl(PTEApp: Record "D4P BC PTE App"; ServiceType: Text[100]): Text
     var
+        DevOpsOrganization: Record "D4P BC DevOps Organization";
         RestClient: Codeunit "Rest Client";
         JsonToken: JsonToken;
         TokenKey: Text[150];
     begin
-        TokenKey := UpperCase(PTEApp."DevOps Organization");
+        DevOpsOrganization.SetRange("DevOps Environment", PTEApp."DevOps Environment");
+        DevOpsOrganization.SetRange(ID, UpperCase(PTEApp."DevOps Organization"));
+        if DevOpsOrganization.FindFirst() then
+            TokenKey := GetTokenKey(DevOpsOrganization);
         if HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(GetToken(TokenKey));
         JsonToken := RestClient.GetAsJson(GetNugetServiceURL(PTEApp));
@@ -46,6 +50,11 @@ codeunit 62004 "D4P BC Azure Update" implements "D4P BC DevOps Update"
         exit(false);
         // Azure DevOps support is intentionally disabled by default
         // pending final testing/completion of this implementation.
+    end;
+
+    procedure GetTokenKey(DevOpsOrganization: Record "D4P BC DevOps Organization"): Text
+    begin
+        exit(DevOpsOrganization.GetTokenKey());
     end;
 
     local procedure ProcessServices(JsonToken: JsonToken; ServiceType: Text[100]): Text

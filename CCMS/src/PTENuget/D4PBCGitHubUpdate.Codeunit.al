@@ -6,11 +6,15 @@ codeunit 62003 "D4P BC GitHub Update" implements "D4P BC DevOps Update"
 {
     procedure GetNugetServiceTypeUrl(PTEApp: Record "D4P BC PTE App"; ServiceType: Text[100]): Text
     var
+        DevOpsOrganization: Record "D4P BC DevOps Organization";
         RestClient: Codeunit "Rest Client";
         JsonToken: JsonToken;
         TokenKey: Text[150];
     begin
-        TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment", UpperCase(PTEApp."DevOps Organization"));
+        DevOpsOrganization.SetRange("DevOps Environment", PTEApp."DevOps Environment");
+        DevOpsOrganization.SetRange(ID, UpperCase(PTEApp."DevOps Organization"));
+        if DevOpsOrganization.FindFirst() then
+            TokenKey := GetTokenKey(DevOpsOrganization);
         if HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(GetToken(TokenKey));
         JsonToken := RestClient.GetAsJson(GetNugetServiceURL(PTEApp));
@@ -63,6 +67,11 @@ codeunit 62003 "D4P BC GitHub Update" implements "D4P BC DevOps Update"
     procedure IsEnabled(): Boolean
     begin
         exit(true);
+    end;
+
+    procedure GetTokenKey(DevOpsOrganization: Record "D4P BC DevOps Organization"): Text
+    begin
+        exit(DevOpsOrganization.GetTokenKey());
     end;
 
 }

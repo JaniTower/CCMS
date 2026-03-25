@@ -25,4 +25,9 @@ codeunit 62006 "D4P BC NoDevOps Update" implements "D4P BC DevOps Update"
     begin
         exit(false);
     end;
+
+    procedure GetTokenKey(DevOpsOrganization: Record "D4P BC DevOps Organization"): Text
+    begin
+        exit('');
+    end;
 }

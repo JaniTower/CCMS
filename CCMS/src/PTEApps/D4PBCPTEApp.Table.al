@@ -80,6 +80,12 @@ table 62007 "D4P BC PTE App"
         fieldgroup(Brick; "ID", "Name")
         { }
     }
+    trigger OnInsert()
+    begin
+        if IsNullGuid(Rec."ID") then
+            Rec."ID" := CreateGuid();
+    end;
+
     trigger OnDelete()
     var
         PTEAppVersion: Record "D4P BC PTE App Version";
