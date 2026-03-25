@@ -1,6 +1,7 @@
 namespace D4P.CCMS.Nuget;
 
 using D4P.CCMS.PTEApps;
+using D4P.CCMS.Setup;
 using System.RestClient;
 codeunit 62003 "D4P BC GitHub Update" implements "D4P BC DevOps Update"
 {
@@ -8,8 +9,10 @@ codeunit 62003 "D4P BC GitHub Update" implements "D4P BC DevOps Update"
     var
         DevOpsOrganization: Record "D4P BC DevOps Organization";
         RestClient: Codeunit "Rest Client";
+        Response: Codeunit "HTTP Response Message";
         JsonToken: JsonToken;
         TokenKey: Text[150];
+        ResponseText: Text;
     begin
         DevOpsOrganization.SetRange("DevOps Environment", PTEApp."DevOps Environment");
         DevOpsOrganization.SetRange(ID, UpperCase(PTEApp."DevOps Organization"));
@@ -17,7 +20,10 @@ codeunit 62003 "D4P BC GitHub Update" implements "D4P BC DevOps Update"
             TokenKey := GetTokenKey(DevOpsOrganization);
         if HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(GetToken(TokenKey));
-        JsonToken := RestClient.GetAsJson(GetNugetServiceURL(PTEApp));
+        Response := RestClient.Get(GetNugetServiceURL(PTEApp));
+        Response.GetContent().ReadAs(ResponseText);
+        ShowDebugMessage(ResponseText, 'GitHub NuGet Service Index');
+        JsonToken.ReadFrom(ResponseText);
         exit(ProcessServices(JsonToken, ServiceType));
     end;
 
@@ -72,6 +78,16 @@ codeunit 62003 "D4P BC GitHub Update" implements "D4P BC DevOps Update"
     procedure GetTokenKey(DevOpsOrganization: Record "D4P BC DevOps Organization"): Text
     begin
         exit(DevOpsOrganization.GetTokenKey());
+    end;
+
+    local procedure ShowDebugMessage(ResponseText: Text; ActionName: Text)
+    var
+        BCSetup: Record "D4P BC Setup";
+        DebugMsg: Label 'DEBUG - %1 Response:\%2', Comment = '%1 = Action name, %2 = Response body';
+    begin
+        if BCSetup.Get() then
+            if BCSetup."Debug Mode" then
+                Message(DebugMsg, ActionName, ResponseText);
     end;
 
 }

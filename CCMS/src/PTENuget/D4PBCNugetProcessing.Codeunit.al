@@ -1,6 +1,7 @@
 namespace D4P.CCMS.Nuget;
 
 using D4P.CCMS.PTEApps;
+using D4P.CCMS.Setup;
 using System.RestClient;
 codeunit 62008 "D4P BC Nuget Processing"
 {
@@ -31,6 +32,7 @@ codeunit 62008 "D4P BC Nuget Processing"
         SearchURLLbl: Label '%1?q=%2', Locked = true, Comment = '%1 is Service Type URL, %2 is Package Name';
         SearchURL: Text;
         TokenKey: Text[150];
+        ResponseText: Text;
     begin
         if (ServiceTypeUrl = '') or (PTEApp."NuGet Package Name" = '') then
             exit;
@@ -38,7 +40,9 @@ codeunit 62008 "D4P BC Nuget Processing"
         if BCDevOpsUpdate.HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
         SearchURL := StrSubstNo(SearchURLLbl, ServiceTypeUrl, PTEApp."NuGet Package Name");
-        JsonToken := RestClient.GetAsJson(SearchURL);
+        RestClient.Get(SearchURL).GetContent().ReadAs(ResponseText);
+        ShowDebugMessage(ResponseText, 'NuGet Package Search');
+        JsonToken.ReadFrom(ResponseText);
         ProcessVersions(JsonToken, PTEApp, BCDevOpsUpdate);
     end;
 
@@ -89,11 +93,14 @@ codeunit 62008 "D4P BC Nuget Processing"
         RestClient: Codeunit "Rest Client";
         JsonToken: JsonToken;
         TokenKey: Text[150];
+        ResponseText: Text;
     begin
         TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment".AsInteger(), UpperCase(PTEApp."DevOps Organization"));
         if BCDevOpsUpdate.HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
-        JsonToken := RestClient.GetAsJson(PackageVersionUrl);
+        RestClient.Get(PackageVersionUrl).GetContent().ReadAs(ResponseText);
+        ShowDebugMessage(ResponseText, 'NuGet Package Version Metadata');
+        JsonToken.ReadFrom(ResponseText);
         if not JsonToken.IsObject() then
             exit('');
         if JsonToken.AsObject().Contains('packageContent') then
@@ -120,6 +127,7 @@ codeunit 62008 "D4P BC Nuget Processing"
         if BCDevOpsUpdate.HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
         Response := RestClient.Get(PTEAppVersion."Package Content Url");
+        ShowDebugMessage(StrSubstNo('HTTP %1 - %2', Response.GetHttpStatusCode(), PTEAppVersion."Package Content Url"), 'NuGet Package Download');
         if not Response.GetIsSuccessStatusCode() then
             exit(false);
         Instream := Response.GetContent().AsInStream();
@@ -149,6 +157,16 @@ codeunit 62008 "D4P BC Nuget Processing"
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
         Response := RestClient.Get(BCDevOpsUpdate.GetNugetServiceURL(PTEApp));
         exit(Response.GetIsSuccessStatusCode());
+    end;
+
+    local procedure ShowDebugMessage(ResponseText: Text; ActionName: Text)
+    var
+        BCSetup: Record "D4P BC Setup";
+        DebugMsg: Label 'DEBUG - %1 Response:\%2', Comment = '%1 = Action name, %2 = Response body';
+    begin
+        if BCSetup.Get() then
+            if BCSetup."Debug Mode" then
+                Message(DebugMsg, ActionName, ResponseText);
     end;
 
     local procedure SanitizeFileName(UnsafeFileName: Text): Text
