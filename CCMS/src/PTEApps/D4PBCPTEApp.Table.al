@@ -50,8 +50,8 @@ table 62007 "D4P BC PTE App"
         }
         field(6; "DevOps Package"; Text[100])
         {
-            Caption = 'Package';
-            ToolTip = 'Specifies the package associated with the PTE app.';
+            Caption = 'Project';
+            ToolTip = 'Specifies the Azure DevOps project name associated with the PTE app.';
         }
         field(7; "DevOps Feed"; Text[100])
         {

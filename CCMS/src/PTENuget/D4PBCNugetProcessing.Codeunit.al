@@ -47,12 +47,20 @@ codeunit 62008 "D4P BC Nuget Processing"
         JsonArray: JsonArray;
         TotalHits: Integer;
         PTEAppVersion: Record "D4P BC PTE App Version";
+        PackageNotFoundLbl: Label 'Package ''%1'' was not found in the feed. Please verify the NuGet Package Name.', Comment = '%1 is the package name';
+        PackageAmbiguousLbl: Label 'Package ''%1'' matched %2 results. Please use a more specific NuGet Package Name.', Comment = '%1 is the package name, %2 is the number of results';
     begin
         if not JsonToken.IsObject() then
             exit;
         TotalHits := JsonToken.AsObject().GetInteger('totalHits');
-        if TotalHits <> 1 then
+        if TotalHits = 0 then begin
+            Message(PackageNotFoundLbl, PTEApp."NuGet Package Name");
             exit;
+        end;
+        if TotalHits > 1 then begin
+            Message(PackageAmbiguousLbl, PTEApp."NuGet Package Name", TotalHits);
+            exit;
+        end;
         JsonArray := JsonToken.AsObject().GetArray('data');
         JsonArray.Get(0, JsonToken);
 
@@ -101,6 +109,7 @@ codeunit 62008 "D4P BC Nuget Processing"
         Instream: InStream;
         FileName: Text;
         TokenKey: Text[150];
+        DownloadDialogTitleLbl: Label 'Download App Package';
     begin
         if not PTEApp.Get(PTEAppVersion."PTE ID") then
             exit(false);
@@ -114,7 +123,7 @@ codeunit 62008 "D4P BC Nuget Processing"
             exit(false);
         Instream := Response.GetContent().AsInStream();
         FileName := SanitizeFileName(PTEAppVersion.GetPTEAppName() + '_' + PTEAppVersion."App Version" + '.app');
-        exit(DownloadFromStream(Instream, 'Download App Package', '', '', FileName));
+        exit(DownloadFromStream(Instream, DownloadDialogTitleLbl, '', '', FileName));
     end;
 
 
