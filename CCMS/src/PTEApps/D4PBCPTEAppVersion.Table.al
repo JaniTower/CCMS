@@ -23,6 +23,12 @@ table 62010 "D4P BC PTE App Version"
             Caption = 'Package Content Url';
             ToolTip = 'Specifies the URL to the package content.';
         }
+        field(4; "Version Sort Key"; Text[30])
+        {
+            Caption = 'Version Sort Key';
+            ToolTip = 'Specifies the zero-padded version string used for correct semantic sort order.';
+            DataClassification = SystemMetadata;
+        }
     }
 
     keys
@@ -30,6 +36,9 @@ table 62010 "D4P BC PTE App Version"
         key(PK; "PTE ID", "App Version")
         {
             Clustered = true;
+        }
+        key(SortKey; "PTE ID", "Version Sort Key")
+        {
         }
     }
 
@@ -39,6 +48,25 @@ table 62010 "D4P BC PTE App Version"
         {
         }
     }
+
+    procedure ComputeSortKey(VersionText: Text): Text
+    var
+        Parts: List of [Text];
+        Part: Text;
+        SortKey: Text;
+        SegmentValue: Integer;
+    begin
+        Parts := VersionText.Split('.');
+        while Parts.Count() < 4 do
+            Parts.Add('0');
+        foreach Part in Parts do begin
+            Evaluate(SegmentValue, Part);
+            if SortKey <> '' then
+                SortKey += '.';
+            SortKey += Format(SegmentValue, 0, '<Integer,5><Filler Character,0>');
+        end;
+        exit(SortKey);
+    end;
 
     procedure DoExists(): Boolean
     var

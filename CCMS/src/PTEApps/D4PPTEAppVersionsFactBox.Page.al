@@ -9,7 +9,7 @@ page 62033 "D4P PTE App Versions FactBox"
     Editable = false;
     PageType = ListPart;
     SourceTable = "D4P BC PTE App Version";
-    SourceTableView = sorting("App Version") order(descending);
+    SourceTableView = sorting("Version Sort Key") order(descending);
     CardPageId = "D4P BC PTE App Version Card";
 
     layout

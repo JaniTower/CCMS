@@ -75,6 +75,7 @@ codeunit 62008 "D4P BC Nuget Processing"
             PTEAppVersion.Init();
             PTEAppVersion."PTE ID" := PTEApp."ID";
             PTEAppVersion."App Version" := JsonToken.AsObject().GetText('version');
+            PTEAppVersion."Version Sort Key" := PTEAppVersion.ComputeSortKey(PTEAppVersion."App Version");
             PTEAppVersion."Package Content Url" := GetPackageContentUrl(PTEApp, PTEAppVersion, JsonToken.AsObject().GetText('@id'), BCDevOpsUpdate);
             if PTEAppVersion.DoExists() then
                 PTEAppVersion.Modify(true)
