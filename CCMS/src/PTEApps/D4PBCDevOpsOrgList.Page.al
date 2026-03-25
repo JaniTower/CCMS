@@ -1,0 +1,68 @@
+namespace D4P.CCMS.PTEApps;
+
+using D4P.CCMS.Nuget;
+
+page 62036 "D4P BC DevOps Org. List"
+{
+    ApplicationArea = All;
+    Caption = 'D365BC DevOps Organization List';
+    PageType = List;
+    SourceTable = "D4P BC DevOps Organization";
+    UsageCategory = Administration;
+
+    layout
+    {
+        area(Content)
+        {
+            repeater(General)
+            {
+                field(DevOps; Rec."DevOps Environment")
+                {
+                }
+                field(ID; Rec.ID)
+                {
+                }
+                field(Name; Rec.Name)
+                {
+                }
+            }
+        }
+    }
+
+    actions
+    {
+        area(Processing)
+        {
+            action(ImportToken)
+            {
+                Caption = 'Import Token';
+                ApplicationArea = All;
+                Image = CodesList;
+                trigger OnAction()
+                var
+                    InputToken: Page "D4P BC Input Token";
+                begin
+                    if InputToken.RunModal() = Action::OK then
+                        IsolatedStorage.Set(StrSubstNo('%1-%2', Rec."DevOps Environment", Rec.ID), InputToken.GetToken());
+                end;
+            }
+            action(TestConnection)
+            {
+                Caption = 'Test Connection';
+                ApplicationArea = All;
+                Image = ValidateEmailLoggingSetup;
+                trigger OnAction()
+                var
+                    NugetProcessing: Codeunit "D4P BC Nuget Processing";
+                    ConnectionSuccessLbl: Label 'Connection successful.';
+                    ConnectionFailedLbl: Label 'Connection failed. Please verify your token and organization settings.';
+                begin
+                    if NugetProcessing.TestConnection(Rec) then
+                        Message(ConnectionSuccessLbl)
+                    else
+                        Message(ConnectionFailedLbl);
+                end;
+            }
+        }
+    }
+}
