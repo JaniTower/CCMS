@@ -141,6 +141,20 @@ page 62008 "D4P BC Installed Apps List"
                         until Rec.Next() = 0;
                 end;
             }
+            action(UploadAppFile)
+            {
+                Caption = 'Upload App File';
+                Image = Import;
+                ToolTip = 'Upload an .app file to install or update an extension on the environment.';
+                trigger OnAction()
+                var
+                    BCEnvironment: Record "D4P BC Environment";
+                    EnvironmentManagement: Codeunit "D4P BC Environment Mgt";
+                begin
+                    BCEnvironment.Get(Rec."Customer No.", Rec."Tenant ID", Rec."Environment Name");
+                    EnvironmentManagement.UploadExtension(BCEnvironment);
+                end;
+            }
             action(DeleteAll)
             {
                 Caption = 'Delete All';
@@ -178,6 +192,9 @@ page 62008 "D4P BC Installed Apps List"
             {
             }
             actionref(UpdateSelectedAppsPromoted; UpdateSelectedApps)
+            {
+            }
+            actionref(UploadAppFilePromoted; UploadAppFile)
             {
             }
             actionref(DeleteAllPromoted; DeleteAll)

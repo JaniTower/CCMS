@@ -21,7 +21,7 @@ codeunit 62003 "D4P BC GitHub Update" implements "D4P BC DevOps Update"
         if HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(GetToken(TokenKey));
         Response := RestClient.Get(GetNugetServiceURL(PTEApp));
-        Response.GetContent().ReadAs(ResponseText);
+        ResponseText := Response.GetContent().AsText();
         ShowDebugMessage(ResponseText, 'GitHub NuGet Service Index');
         JsonToken.ReadFrom(ResponseText);
         exit(ProcessServices(JsonToken, ServiceType));

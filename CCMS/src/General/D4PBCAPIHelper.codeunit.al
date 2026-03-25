@@ -51,6 +51,45 @@ codeunit 62049 "D4P BC API Helper"
         exit(HttpResponseMessage.IsSuccessStatusCode());
     end;
 
+    procedure SendAdminAPIBinaryRequest(var BCTenant: Record "D4P BC Tenant"; Method: Text; Endpoint: Text; ContentInStream: InStream; var ResponseText: Text): Boolean
+    var
+        HttpClient: HttpClient;
+        RequestContent: HttpContent;
+        ContentHeaders: HttpHeaders;
+        Headers: HttpHeaders;
+        HttpRequestMessage: HttpRequestMessage;
+        HttpResponseMessage: HttpResponseMessage;
+        FailedToObtainTokenErr: Label 'Failed to obtain access token for tenant %1.', Comment = '%1 - Tenant identifier';
+        FailedToSendRequestErr: Label 'Failed to send HTTP request';
+        AuthToken: SecretText;
+        EndpointUrl: Text;
+    begin
+        AuthToken := GetOAuthToken(BCTenant);
+        if AuthToken.IsEmpty() then
+            Error(FailedToObtainTokenErr, BCTenant."Tenant ID".ToText().Replace('{', '').Replace('}', ''));
+
+        EndpointUrl := GetAdminAPIBaseUrl() + Endpoint;
+
+        HttpRequestMessage.SetRequestUri(EndpointUrl);
+        HttpRequestMessage.Method := Method;
+        HttpRequestMessage.GetHeaders(Headers);
+        Headers.Add('Authorization', SecretStrSubstNo('Bearer %1', AuthToken));
+
+        RequestContent.WriteFrom(ContentInStream);
+        RequestContent.GetHeaders(ContentHeaders);
+        ContentHeaders.Remove('Content-Type');
+        ContentHeaders.Add('Content-Type', 'application/octet-stream');
+        HttpRequestMessage.Content := RequestContent;
+
+        if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then
+            Error(FailedToSendRequestErr);
+
+        HttpResponseMessage.Content().ReadAs(ResponseText);
+        ShowDebugMessage(StrSubstNo('HTTP %1 - %2', HttpResponseMessage.HttpStatusCode(), ResponseText), Method + ' ' + Endpoint);
+
+        exit(HttpResponseMessage.IsSuccessStatusCode());
+    end;
+
     procedure SendAutomationAPIRequest(AADTenantId: Guid; EnvironmentName: Text; Method: Text; Endpoint: Text; RequestBody: Text; AuthToken: SecretText; var ResponseText: Text): Boolean
     var
         HttpClient: HttpClient;
@@ -99,6 +138,51 @@ codeunit 62049 "D4P BC API Helper"
         exit(HttpResponseMessage.IsSuccessStatusCode());
     end;
 
+    procedure SendAutomationAPIRequestWithETag(AADTenantId: Guid; EnvironmentName: Text; Method: Text; Endpoint: Text; RequestBody: Text; ETag: Text; AuthToken: SecretText; var ResponseText: Text): Boolean
+    var
+        HttpClient: HttpClient;
+        RequestContent: HttpContent;
+        Headers: HttpHeaders;
+        HttpRequestMessage: HttpRequestMessage;
+        HttpResponseMessage: HttpResponseMessage;
+        FailedToConnectErr: Label 'Failed to connect to the API.';
+        EndpointUrl: Text;
+        TenantIdText: Text;
+    begin
+        TenantIdText := Format(AADTenantId);
+        TenantIdText := DelChr(TenantIdText, '=', '{}');
+
+        EndpointUrl := StrSubstNo('%1/%2/%3%4',
+            GetAutomationAPIBaseUrl(),
+            TenantIdText,
+            EnvironmentName,
+            Endpoint);
+
+        HttpRequestMessage.SetRequestUri(EndpointUrl);
+        HttpRequestMessage.Method := Method;
+        HttpRequestMessage.GetHeaders(Headers);
+        Headers.Add('Authorization', SecretStrSubstNo('Bearer %1', AuthToken));
+        Headers.Add('Accept', 'application/json');
+        if ETag <> '' then
+            Headers.Add('If-Match', ETag);
+
+        if RequestBody <> '' then begin
+            RequestContent.WriteFrom(RequestBody);
+            RequestContent.GetHeaders(Headers);
+            Headers.Remove('Content-Type');
+            Headers.Add('Content-Type', 'application/json');
+            HttpRequestMessage.Content := RequestContent;
+        end;
+
+        if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then
+            Error(FailedToConnectErr);
+
+        HttpResponseMessage.Content().ReadAs(ResponseText);
+        ShowDebugMessage(ResponseText, Method + ' ' + Endpoint);
+
+        exit(HttpResponseMessage.IsSuccessStatusCode());
+    end;
+
     procedure GetOAuthToken(var BCTenant: Record "D4P BC Tenant") AuthToken: SecretText
     var
         OAuth2: Codeunit OAuth2;
@@ -137,6 +221,50 @@ codeunit 62049 "D4P BC API Helper"
 
         if not OAuth2.AcquireTokenWithClientCredentials(ClientID, ClientSecret, AccessTokenURL, '', Scopes, AuthToken) then
             Error(FailedToGetTokenErr, GetLastErrorText());
+    end;
+
+    procedure SendAutomationAPIBinaryRequest(AADTenantId: Guid; EnvironmentName: Text; Method: Text; Endpoint: Text; ContentInStream: InStream; ETag: Text; AuthToken: SecretText; var ResponseText: Text): Boolean
+    var
+        HttpClient: HttpClient;
+        RequestContent: HttpContent;
+        ContentHeaders: HttpHeaders;
+        Headers: HttpHeaders;
+        HttpRequestMessage: HttpRequestMessage;
+        HttpResponseMessage: HttpResponseMessage;
+        FailedToConnectErr: Label 'Failed to connect to the API.';
+        EndpointUrl: Text;
+        TenantIdText: Text;
+    begin
+        TenantIdText := Format(AADTenantId);
+        TenantIdText := DelChr(TenantIdText, '=', '{}');
+
+        EndpointUrl := StrSubstNo('%1/%2/%3%4',
+            GetAutomationAPIBaseUrl(),
+            TenantIdText,
+            EnvironmentName,
+            Endpoint);
+
+        HttpRequestMessage.SetRequestUri(EndpointUrl);
+        HttpRequestMessage.Method := Method;
+        HttpRequestMessage.GetHeaders(Headers);
+        Headers.Add('Authorization', SecretStrSubstNo('Bearer %1', AuthToken));
+        Headers.Add('Accept', 'application/json');
+        if ETag <> '' then
+            Headers.Add('If-Match', ETag);
+
+        RequestContent.WriteFrom(ContentInStream);
+        RequestContent.GetHeaders(ContentHeaders);
+        ContentHeaders.Remove('Content-Type');
+        ContentHeaders.Add('Content-Type', 'application/octet-stream');
+        HttpRequestMessage.Content := RequestContent;
+
+        if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then
+            Error(FailedToConnectErr);
+
+        HttpResponseMessage.Content().ReadAs(ResponseText);
+        ShowDebugMessage(StrSubstNo('HTTP %1 - %2', HttpResponseMessage.HttpStatusCode(), ResponseText), Method + ' ' + Endpoint);
+
+        exit(HttpResponseMessage.IsSuccessStatusCode());
     end;
 
     local procedure ShowDebugMessage(ResponseText: Text; ActionName: Text)

@@ -40,7 +40,7 @@ codeunit 62008 "D4P BC Nuget Processing"
         if BCDevOpsUpdate.HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
         SearchURL := StrSubstNo(SearchURLLbl, ServiceTypeUrl, PTEApp."NuGet Package Name");
-        RestClient.Get(SearchURL).GetContent().ReadAs(ResponseText);
+        ResponseText := RestClient.Get(SearchURL).GetContent().AsText();
         ShowDebugMessage(ResponseText, 'NuGet Package Search');
         JsonToken.ReadFrom(ResponseText);
         ProcessVersions(JsonToken, PTEApp, BCDevOpsUpdate);
@@ -98,7 +98,7 @@ codeunit 62008 "D4P BC Nuget Processing"
         TokenKey := StrSubstNo('%1-%2', PTEApp."DevOps Environment".AsInteger(), UpperCase(PTEApp."DevOps Organization"));
         if BCDevOpsUpdate.HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
-        RestClient.Get(PackageVersionUrl).GetContent().ReadAs(ResponseText);
+        ResponseText := RestClient.Get(PackageVersionUrl).GetContent().AsText();
         ShowDebugMessage(ResponseText, 'NuGet Package Version Metadata');
         JsonToken.ReadFrom(ResponseText);
         if not JsonToken.IsObject() then
@@ -131,7 +131,7 @@ codeunit 62008 "D4P BC Nuget Processing"
         if not Response.GetIsSuccessStatusCode() then
             exit(false);
         Instream := Response.GetContent().AsInStream();
-        FileName := SanitizeFileName(PTEAppVersion.GetPTEAppName() + '_' + PTEAppVersion."App Version" + '.app');
+        FileName := SanitizeFileName(PTEAppVersion.GetPTEAppName() + '_' + PTEAppVersion."App Version" + '.nupkg');
         exit(DownloadFromStream(Instream, DownloadDialogTitleLbl, '', '', FileName));
     end;
 

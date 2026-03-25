@@ -22,7 +22,7 @@ codeunit 62004 "D4P BC Azure Update" implements "D4P BC DevOps Update"
         if HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(GetToken(TokenKey));
         Response := RestClient.Get(GetNugetServiceURL(PTEApp));
-        Response.GetContent().ReadAs(ResponseText);
+        ResponseText := Response.GetContent().AsText();
         ShowDebugMessage(ResponseText, 'Azure NuGet Service Index');
         JsonToken.ReadFrom(ResponseText);
         exit(ProcessServices(JsonToken, ServiceType));

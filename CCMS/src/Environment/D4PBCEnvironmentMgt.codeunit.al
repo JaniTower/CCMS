@@ -4,7 +4,9 @@ using D4P.CCMS.Extension;
 using D4P.CCMS.General;
 using D4P.CCMS.Setup;
 using D4P.CCMS.Tenant;
+using System.IO;
 using System.Security.Authentication;
+using System.Utilities;
 
 codeunit 62000 "D4P BC Environment Mgt"
 {
@@ -558,6 +560,126 @@ codeunit 62000 "D4P BC Environment Mgt"
             AppUpdateNotification.Send();
         end else
             Message(AppUpdateScheduledMsg, InstalledApp."App Name", InstalledApp."Available Update Version");
+    end;
+
+    procedure UploadExtension(var BCEnvironment: Record "D4P BC Environment")
+    var
+        BCTenant: Record "D4P BC Tenant";
+        TempBlob: Codeunit "Temp Blob";
+        JObject: JsonObject;
+        JToken: JsonToken;
+        JArray: JsonArray;
+        FailedToObtainTokenErr: Label 'Failed to obtain authentication token.';
+        FailedToGetCompaniesErr: Label 'Failed to get companies: %1', Comment = '%1 = Error message';
+        FailedToCreateUploadErr: Label 'Failed to create extension upload: %1', Comment = '%1 = Error message';
+        FailedToUploadContentErr: Label 'Failed to upload extension content: %1', Comment = '%1 = Error message';
+        FailedToTriggerErr: Label 'Failed to trigger deployment: %1', Comment = '%1 = Error message';
+        NoCompaniesErr: Label 'No companies found in the environment.';
+        UploadSuccessMsg: Label 'Extension file has been uploaded. Check Extension Management in the environment for deployment status.';
+        UploadDialogTitleLbl: Label 'Select App File';
+        AppFileFilterLbl: Label 'App Files (*.app)|*.app';
+        EmptyFileErr: Label 'File content is empty. Please select a valid .app file.';
+        AuthToken: SecretText;
+        AppInStream: InStream;
+        AppOutStream: OutStream;
+        CompanyId: Text;
+        ETag: Text;
+        FileName: Text;
+        ResponseText: Text;
+        UploadSystemId: Text;
+    begin
+        // 1. Pick the .app file and buffer it
+        TempBlob.CreateOutStream(AppOutStream);
+        if not UploadIntoStream(UploadDialogTitleLbl, '', AppFileFilterLbl, FileName, AppInStream) then
+            exit;
+        CopyStream(AppOutStream, AppInStream);
+        if not TempBlob.HasValue() then
+            Error(EmptyFileErr);
+
+        // 2. Authenticate
+        BCTenant.Get(BCEnvironment."Customer No.", BCEnvironment."Tenant ID");
+        AuthToken := APIHelper.GetAutomationApiOAuthToken(BCEnvironment."AAD Tenant ID", BCTenant."Client ID", BCTenant.GetClientSecret());
+        if AuthToken.IsEmpty() then
+            Error(FailedToObtainTokenErr);
+
+        // 3. Get first company ID
+        if not APIHelper.SendAutomationAPIRequest(
+            BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
+            'GET', '/api/microsoft/automation/v2.0/companies', '',
+            AuthToken, ResponseText)
+        then
+            Error(FailedToGetCompaniesErr, ResponseText);
+
+        JObject.ReadFrom(ResponseText);
+        JObject.Get('value', JToken);
+        JArray := JToken.AsArray();
+        if JArray.Count() = 0 then
+            Error(NoCompaniesErr);
+        JArray.Get(0, JToken);
+        JObject := JToken.AsObject();
+        JObject.Get('id', JToken);
+        CompanyId := JToken.AsValue().AsText();
+
+        // 4. Get or create extension upload entity
+        APIHelper.SendAutomationAPIRequest(
+            BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
+            'GET',
+            StrSubstNo('/api/microsoft/automation/v2.0/companies(%1)/extensionUpload', CompanyId),
+            '', AuthToken, ResponseText);
+
+        Clear(JObject);
+        JObject.ReadFrom(ResponseText);
+        UploadSystemId := '';
+        if JObject.Get('value', JToken) then begin
+            JArray := JToken.AsArray();
+            if JArray.Count() > 0 then begin
+                JArray.Get(0, JToken);
+                JObject := JToken.AsObject();
+                JObject.Get('systemId', JToken);
+                UploadSystemId := JToken.AsValue().AsText();
+                JObject.Get('@odata.etag', JToken);
+                ETag := JToken.AsValue().AsText();
+            end;
+        end;
+
+        if UploadSystemId = '' then begin
+            if not APIHelper.SendAutomationAPIRequest(
+                BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
+                'POST',
+                StrSubstNo('/api/microsoft/automation/v2.0/companies(%1)/extensionUpload', CompanyId),
+                '{"schedule":"Current version","schemaSyncMode":"Add"}',
+                AuthToken, ResponseText)
+            then
+                Error(FailedToCreateUploadErr, ResponseText);
+
+            Clear(JObject);
+            JObject.ReadFrom(ResponseText);
+            JObject.Get('systemId', JToken);
+            UploadSystemId := JToken.AsValue().AsText();
+            JObject.Get('@odata.etag', JToken);
+            ETag := JToken.AsValue().AsText();
+        end;
+
+        // 5. Upload .app file content
+        TempBlob.CreateInStream(AppInStream);
+        if not APIHelper.SendAutomationAPIBinaryRequest(
+            BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
+            'PATCH',
+            StrSubstNo('/api/microsoft/automation/v2.0/companies(%1)/extensionUpload(%2)/extensionContent', CompanyId, UploadSystemId),
+            AppInStream, '*', AuthToken, ResponseText)
+        then
+            Error(FailedToUploadContentErr, ResponseText);
+
+        // 6. Trigger deployment via Microsoft.NAV.upload action
+        if not APIHelper.SendAutomationAPIRequest(
+            BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
+            'POST',
+            StrSubstNo('/api/microsoft/automation/v2.0/companies(%1)/extensionUpload(%2)/Microsoft.NAV.upload', CompanyId, UploadSystemId),
+            '', AuthToken, ResponseText)
+        then
+            Error(FailedToTriggerErr, ResponseText);
+
+        Message(UploadSuccessMsg);
     end;
 
     procedure CreateNewBCEnvironment(var BCTenant: Record "D4P BC Tenant"; EnvironmentName: Text[100]; Localization: Code[2]; EnvironmentType: Enum "D4P Environment Type")

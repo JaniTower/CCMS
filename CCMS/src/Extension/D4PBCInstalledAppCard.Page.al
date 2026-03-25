@@ -114,6 +114,20 @@ page 62024 "D4P BC Installed App Card"
                     EnvironmentManagement.UpdateApp(BCEnvironment, Rec."App ID", false);
                 end;
             }
+            action(UploadAppFile)
+            {
+                Caption = 'Upload App File';
+                Image = Import;
+                ToolTip = 'Upload an .app file to install or update an extension on the environment.';
+                trigger OnAction()
+                var
+                    BCEnvironment: Record "D4P BC Environment";
+                    EnvironmentManagement: Codeunit "D4P BC Environment Mgt";
+                begin
+                    BCEnvironment.Get(Rec."Customer No.", Rec."Tenant ID", Rec."Environment Name");
+                    EnvironmentManagement.UploadExtension(BCEnvironment);
+                end;
+            }
             action(DeleteAll)
             {
                 Caption = 'Delete All';
@@ -148,6 +162,9 @@ page 62024 "D4P BC Installed App Card"
             {
             }
             actionref(UpdateAppPromoted; UpdateApp)
+            {
+            }
+            actionref(UploadAppFilePromoted; UploadAppFile)
             {
             }
             actionref(DeleteAllPromoted; DeleteAll)
