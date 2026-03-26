@@ -115,6 +115,14 @@ table 62047 "D4P BC Admin Center Cue"
             FieldClass = FlowField;
             ToolTip = 'Number of scheduled PTE updates with pending status';
         }
+        field(13; "PTE Apps Count"; Integer)
+        {
+            CalcFormula = count("D4P BC PTE App");
+            Caption = 'PTE Apps';
+            Editable = false;
+            FieldClass = FlowField;
+            ToolTip = 'Number of registered PTE apps';
+        }
     }
 
     keys

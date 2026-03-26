@@ -124,7 +124,6 @@ permissionset 62000 "D4P BC ADMIN"
         page "D4P BC Scheduled PTE Updates" = X,
         page "D4P BC Sched. PTE Upd. Part" = X,
         page "D4P BC Schedule PTE Dialog" = X,
-        page "D4P BC PTE App Dep. FactBox" = X,
 
         // Codeunits
         codeunit "D4P BC Environment Mgt" = X,
@@ -137,11 +136,6 @@ permissionset 62000 "D4P BC ADMIN"
         codeunit "D4P BC Operations Helper" = X,
         codeunit "D4P BC App Registration" = X,
         codeunit "D4P BC PTE Update Scheduler" = X,
-        codeunit "D4P BC Nuget Processing" = X,
-        codeunit "D4P BC API Helper" = X,
-        codeunit "D4P BC Azure Update" = X,
-        codeunit "D4P BC GitHub Update" = X,
-        codeunit "D4P BC NoDevOps Update" = X,
 
         // Reports
         report "D4P Load Data" = X,

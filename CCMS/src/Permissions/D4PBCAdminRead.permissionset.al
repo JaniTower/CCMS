@@ -120,8 +120,6 @@ permissionset 62001 "D4P BC ADMIN READ"
         codeunit "D4P BC Operations Helper" = X,
         codeunit "D4P BC App Registration" = X,
         codeunit "D4P BC PTE Update Scheduler" = X,
-        codeunit "D4P BC Nuget Processing" = X,
-        codeunit "D4P BC API Helper" = X,
 
         // Reports - needed for telemetry queries
         report "D4P Load Data" = X,
