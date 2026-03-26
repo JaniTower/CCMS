@@ -1,6 +1,6 @@
 namespace D4P.CCMS.PTEApps;
 
-page 62037 "D4P BC PTE Object Range"
+page 62055 "D4P BC PTE Object Range"
 {
     ApplicationArea = All;
     Caption = 'D365BC PTE Object Range';

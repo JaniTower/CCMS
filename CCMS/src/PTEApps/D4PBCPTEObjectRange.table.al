@@ -1,6 +1,6 @@
 namespace D4P.CCMS.PTEApps;
 
-table 62008 "D4P BC PTE Object Range"
+table 62017 "D4P BC PTE Object Range"
 {
     DataClassification = CustomerContent;
     Caption = 'D365BC PTE Object Range';

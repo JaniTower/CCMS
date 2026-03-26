@@ -2,7 +2,7 @@ namespace D4P.CCMS.PTEApps;
 
 using D4P.CCMS.Customer;
 
-table 62053 "D4P BC Scheduled PTE Update"
+table 62020 "D4P BC Scheduled PTE Update"
 {
     Caption = 'D365BC Scheduled PTE Update';
     DataClassification = CustomerContent;

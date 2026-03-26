@@ -1,6 +1,6 @@
 namespace D4P.CCMS.PTEApps;
 
-enum 62053 "D4P BC PTE Update Status"
+enum 62008 "D4P BC PTE Update Status"
 {
     Extensible = false;
 

@@ -2,7 +2,7 @@ namespace D4P.CCMS.PTEApps;
 
 using System.Threading;
 
-page 62053 "D4P BC Scheduled PTE Updates"
+page 62059 "D4P BC Scheduled PTE Updates"
 {
     ApplicationArea = All;
     Caption = 'D365BC Scheduled PTE Updates';

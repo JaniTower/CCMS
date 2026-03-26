@@ -4,7 +4,7 @@ using D4P.CCMS.PTEApps;
 using D4P.CCMS.Setup;
 using System.RestClient;
 
-codeunit 62004 "D4P BC Azure Update" implements "D4P BC DevOps Update"
+codeunit 62008 "D4P BC Azure Update" implements "D4P BC DevOps Update"
 {
     procedure GetNugetServiceTypeUrl(PTEApp: Record "D4P BC PTE App"; ServiceType: Text[100]): Text
     var

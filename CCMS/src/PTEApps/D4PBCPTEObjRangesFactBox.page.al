@@ -2,7 +2,7 @@ namespace D4P.CCMS.PTEApps;
 
 using D4P.CCMS.PTEApps;
 
-page 62038 "D4P BC PTE Obj. Ranges FactBox"
+page 62061 "D4P BC PTE Obj. Ranges FactBox"
 {
     ApplicationArea = All;
     Caption = 'D365BC PTE Object Ranges FactBox';

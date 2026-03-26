@@ -1,7 +1,7 @@
 namespace D4P.CCMS.PTEApps;
 
 using D4P.CCMS.Nuget;
-table 62007 "D4P BC PTE App"
+table 62012 "D4P BC PTE App"
 {
     DataClassification = CustomerContent;
     Caption = 'D365BC PTE App';

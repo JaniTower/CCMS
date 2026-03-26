@@ -3,7 +3,7 @@ namespace D4P.CCMS.PTEApps;
 using D4P.CCMS.Environment;
 using System.Threading;
 
-page 62054 "D4P BC Sched. PTE Upd. Part"
+page 62060 "D4P BC Sched. PTE Upd. Part"
 {
     ApplicationArea = All;
     Caption = 'Scheduled PTE Updates';

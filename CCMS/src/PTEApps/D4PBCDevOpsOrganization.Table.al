@@ -1,7 +1,7 @@
 namespace D4P.CCMS.PTEApps;
 
 using D4P.CCMS.Nuget;
-table 62006 "D4P BC DevOps Organization"
+table 62011 "D4P BC DevOps Organization"
 {
     DataClassification = CustomerContent;
     Caption = 'D365BC DevOps Organization';

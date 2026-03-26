@@ -2,7 +2,7 @@ namespace D4P.CCMS.PTEApps;
 
 using D4P.CCMS.Nuget;
 
-page 62033 "D4P PTE App Versions FactBox"
+page 62056 "D4P PTE App Versions FactBox"
 {
     ApplicationArea = All;
     Caption = 'D365BC Versions';

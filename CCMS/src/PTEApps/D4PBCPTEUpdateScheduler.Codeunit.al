@@ -6,7 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Utilities;
 
-codeunit 62053 "D4P BC PTE Update Scheduler"
+codeunit 62007 "D4P BC PTE Update Scheduler"
 {
     Access = Internal;
     TableNo = "Job Queue Entry";

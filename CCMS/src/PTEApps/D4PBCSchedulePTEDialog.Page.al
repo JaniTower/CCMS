@@ -3,7 +3,7 @@ namespace D4P.CCMS.PTEApps;
 using D4P.CCMS.Environment;
 using D4P.CCMS.Tenant;
 
-page 62055 "D4P BC Schedule PTE Dialog"
+page 62058 "D4P BC Schedule PTE Dialog"
 {
     ApplicationArea = All;
     Caption = 'Schedule PTE Update';
