@@ -52,6 +52,7 @@ codeunit 62009 "D4P BC Nuget Processing"
         JsonArray: JsonArray;
         TotalHits: Integer;
         PTEAppVersion: Record "D4P BC PTE App Version";
+        LatestVersion: Text;
         PackageNotFoundLbl: Label 'Package ''%1'' was not found in the feed. Please verify the NuGet Package Name.', Comment = '%1 is the package name';
         PackageAmbiguousLbl: Label 'Package ''%1'' matched %2 results. Please use a more specific NuGet Package Name.', Comment = '%1 is the package name, %2 is the number of results';
     begin
@@ -70,7 +71,8 @@ codeunit 62009 "D4P BC Nuget Processing"
         JsonArray.Get(0, JsonToken);
 
         if JsonToken.AsObject().Contains('version') then begin
-            PTEApp."Latest App Version" := JsonToken.AsObject().GetText('version');
+            LatestVersion := JsonToken.AsObject().GetText('version');
+            PTEApp."Latest App Version" := LatestVersion;
             PTEApp.Modify(true);
         end;
 
@@ -81,7 +83,7 @@ codeunit 62009 "D4P BC Nuget Processing"
             PTEAppVersion."PTE ID" := PTEApp."ID";
             PTEAppVersion."App Version" := JsonToken.AsObject().GetText('version');
             PTEAppVersion."Version Sort Key" := PTEAppVersion.ComputeSortKey(PTEAppVersion."App Version");
-            PTEAppVersion."Package Content Url" := GetPackageContentUrl(PTEApp, PTEAppVersion, JsonToken.AsObject().GetText('@id'), BCDevOpsUpdate);
+            PTEAppVersion."Package Content Url" := GetPackageContentUrl(PTEApp, PTEAppVersion, JsonToken.AsObject().GetText('@id'), BCDevOpsUpdate, PTEAppVersion."App Version" = LatestVersion);
             if PTEAppVersion.DoExists() then
                 PTEAppVersion.Modify(true)
             else
@@ -89,7 +91,7 @@ codeunit 62009 "D4P BC Nuget Processing"
         end;
     end;
 
-    procedure GetPackageContentUrl(PTEApp: Record "D4P BC PTE App"; PTEAppVersion: Record "D4P BC PTE App Version"; PackageVersionUrl: Text; BCDevOpsUpdate: Interface "D4P BC DevOps Update"): Text
+    procedure GetPackageContentUrl(PTEApp: Record "D4P BC PTE App"; PTEAppVersion: Record "D4P BC PTE App Version"; PackageVersionUrl: Text; BCDevOpsUpdate: Interface "D4P BC DevOps Update"; IsLatestVersion: Boolean): Text
     var
         RestClient: Codeunit "Rest Client";
         JsonToken: JsonToken;
@@ -104,9 +106,58 @@ codeunit 62009 "D4P BC Nuget Processing"
         JsonToken.ReadFrom(ResponseText);
         if not JsonToken.IsObject() then
             exit('');
+        if IsLatestVersion then
+            StoreDependencies(PTEApp."ID", JsonToken.AsObject());
         if JsonToken.AsObject().Contains('packageContent') then
             exit(JsonToken.AsObject().GetText('packageContent'));
         exit('');
+    end;
+
+    local procedure StoreDependencies(PTEId: Guid; RegistrationLeaf: JsonObject)
+    var
+        PTEAppDependency: Record "D4P BC PTE App Dependency";
+        DependencyGroupsToken: JsonToken;
+        DependencyGroupToken: JsonToken;
+        DependenciesToken: JsonToken;
+        DependencyToken: JsonToken;
+        DependencyGroups: JsonArray;
+        Dependencies: JsonArray;
+        CatalogEntryToken: JsonToken;
+        SourceObject: JsonObject;
+        DependencyId: Text;
+    begin
+        PTEAppDependency.SetRange("PTE ID", PTEId);
+        PTEAppDependency.DeleteAll();
+
+        SourceObject := RegistrationLeaf;
+        if RegistrationLeaf.Contains('catalogEntry') then begin
+            RegistrationLeaf.Get('catalogEntry', CatalogEntryToken);
+            SourceObject := CatalogEntryToken.AsObject();
+        end;
+
+        if not SourceObject.Get('dependencyGroups', DependencyGroupsToken) then
+            exit;
+        DependencyGroups := DependencyGroupsToken.AsArray();
+        foreach DependencyGroupToken in DependencyGroups do begin
+            if DependencyGroupToken.AsObject().Get('dependencies', DependenciesToken) then begin
+                Dependencies := DependenciesToken.AsArray();
+                foreach DependencyToken in Dependencies do begin
+                    DependencyId := DependencyToken.AsObject().GetText('id');
+                    if not IsMicrosoftPlatformDependency(DependencyId) then begin
+                        PTEAppDependency.Init();
+                        PTEAppDependency."PTE ID" := PTEId;
+                        PTEAppDependency."Dependency Package ID" := CopyStr(DependencyId, 1, 250);
+                        PTEAppDependency."Version Range" := CopyStr(DependencyToken.AsObject().GetText('range'), 1, 50);
+                        PTEAppDependency.Insert();
+                    end;
+                end;
+            end;
+        end;
+    end;
+
+    local procedure IsMicrosoftPlatformDependency(PackageId: Text): Boolean
+    begin
+        exit(PackageId.StartsWith('Microsoft.'));
     end;
 
     procedure DownloadPackageContent(PTEAppVersion: Record "D4P BC PTE App Version"): Boolean

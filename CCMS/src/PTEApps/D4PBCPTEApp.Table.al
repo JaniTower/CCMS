@@ -89,10 +89,20 @@ table 62012 "D4P BC PTE App"
     trigger OnDelete()
     var
         PTEAppVersion: Record "D4P BC PTE App Version";
+        PTEAppDependency: Record "D4P BC PTE App Dependency";
+        PTEObjectRange: Record "D4P BC PTE Object Range";
     begin
         PTEAppVersion.SetRange("PTE ID", Rec."ID");
         if not PTEAppVersion.IsEmpty() then
             PTEAppVersion.DeleteAll(true);
+
+        PTEAppDependency.SetRange("PTE ID", Rec."ID");
+        if not PTEAppDependency.IsEmpty() then
+            PTEAppDependency.DeleteAll(true);
+
+        PTEObjectRange.SetRange("PTE ID", Rec."ID");
+        if not PTEObjectRange.IsEmpty() then
+            PTEObjectRange.DeleteAll(true);
     end;
 
     local procedure ClearFieldsOnDevOpsChange()

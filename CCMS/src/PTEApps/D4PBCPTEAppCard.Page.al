@@ -63,6 +63,11 @@ page 62052 "D4P BC PTE App Card"
                 Caption = 'Versions';
                 SubPageLink = "PTE ID" = field("ID");
             }
+            part(PTEAppDepFactBox; "D4P BC PTE App Dep. FactBox")
+            {
+                Caption = 'Dependencies';
+                SubPageLink = "PTE ID" = field("ID");
+            }
         }
     }
 
