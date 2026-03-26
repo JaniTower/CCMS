@@ -232,7 +232,7 @@ page 62058 "D4P BC Schedule PTE Dialog"
     var
         PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
     begin
-        PTEUpdateScheduler.CreateAndScheduleUpdate(EnvironmentContext, PTEAppContext, SelectedVersion, ScheduleDate, ScheduleTime, InstallDependencies);
-        CurrPage.Close();
+        if PTEUpdateScheduler.CreateAndScheduleUpdate(EnvironmentContext, PTEAppContext, SelectedVersion, ScheduleDate, ScheduleTime, InstallDependencies) then
+            CurrPage.Close();
     end;
 }

@@ -55,6 +55,10 @@ page 62059 "D4P BC Scheduled PTE Updates"
                 {
                     Visible = false;
                 }
+                field("Dependency Entry Nos."; Rec."Dependency Entry Nos.")
+                {
+                    Visible = false;
+                }
             }
         }
     }

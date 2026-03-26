@@ -75,7 +75,22 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         AppOutStream: OutStream;
         EntryList: List of [Text];
         EntryName: Text;
+        DependencyResult: Integer;
+        DependencyFailedErr: Label 'A dependency update has failed or been cancelled. Check dependency entries: %1', Comment = '%1 = Entry Nos.';
     begin
+        if ScheduledUpdate."Dependency Entry Nos." <> '' then begin
+            DependencyResult := CheckDependenciesReady(ScheduledUpdate);
+            case DependencyResult of
+                1: // StillPending — skip, retry next cycle
+                    exit;
+                2: // HasFailed — fail this entry too
+                    begin
+                        FailUpdate(ScheduledUpdate, StrSubstNo(DependencyFailedErr, ScheduledUpdate."Dependency Entry Nos."));
+                        exit;
+                    end;
+            end;
+        end;
+
         ScheduledUpdate.Status := ScheduledUpdate.Status::"In Progress";
         ScheduledUpdate."Started On" := CurrentDateTime();
         ScheduledUpdate.Modify();
@@ -214,7 +229,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         CreateAndScheduleUpdate(BCEnvironment, PTEApp, AppVersion, ScheduleDate, ScheduleTime, false);
     end;
 
-    procedure CreateAndScheduleUpdate(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; AppVersion: Text[50]; ScheduleDate: Date; ScheduleTime: Time; IncludeDependencies: Boolean)
+    procedure CreateAndScheduleUpdate(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; AppVersion: Text[50]; ScheduleDate: Date; ScheduleTime: Time; IncludeDependencies: Boolean): Boolean
     var
         ScheduledUpdate: Record "D4P BC Scheduled PTE Update";
         ScheduledMsg: Label 'PTE update for %1 v%2 has been scheduled for %3.', Comment = '%1 = App Name, %2 = Version, %3 = DateTime';
@@ -223,6 +238,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         NoAppSelectedErr: Label 'Please select a PTE app.';
         NoVersionSelectedErr: Label 'Please select a version.';
         ScheduledDateTime: DateTime;
+        DependencyEntryNos: Text[250];
     begin
         if BCEnvironment.Name = '' then
             Error(NoEnvironmentErr);
@@ -235,8 +251,10 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
 
         if IncludeDependencies then begin
             ValidateDependenciesExist(PTEApp);
-            ScheduleDependencies(BCEnvironment, PTEApp, ScheduledDateTime);
-        end;
+            DependencyEntryNos := ScheduleDependencies(BCEnvironment, PTEApp, ScheduledDateTime);
+        end else
+            if not WarnIfHasDependencies(PTEApp) then
+                exit(false);
 
         ScheduledUpdate.Init();
         ScheduledUpdate."Customer No." := BCEnvironment."Customer No.";
@@ -248,6 +266,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         ScheduledUpdate."Scheduled DateTime" := ScheduledDateTime;
         ScheduledUpdate.Status := ScheduledUpdate.Status::Pending;
         ScheduledUpdate."Created On" := CurrentDateTime();
+        ScheduledUpdate."Dependency Entry Nos." := DependencyEntryNos;
         ScheduledUpdate.Insert(true);
 
         EnsureJobQueueExists();
@@ -255,6 +274,19 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
             Message(ScheduledWithDepsMsg, PTEApp."Name", AppVersion, ScheduledDateTime)
         else
             Message(ScheduledMsg, PTEApp."Name", AppVersion, ScheduledDateTime);
+        exit(true);
+    end;
+
+    local procedure WarnIfHasDependencies(var PTEApp: Record "D4P BC PTE App"): Boolean
+    var
+        PTEAppDependency: Record "D4P BC PTE App Dependency";
+        DependencyWarningQst: Label 'This app has dependencies that will not be installed. The update will fail if the target environment does not have the required dependencies and versions installed.\\\Do you want to continue?';
+    begin
+        PTEAppDependency.SetRange("PTE ID", PTEApp."ID");
+        if PTEAppDependency.IsEmpty() then
+            exit(true);
+
+        exit(Confirm(DependencyWarningQst, false));
     end;
 
     local procedure ValidateDependenciesExist(var PTEApp: Record "D4P BC PTE App")
@@ -274,15 +306,16 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         until PTEAppDependency.Next() = 0;
     end;
 
-    local procedure ScheduleDependencies(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; ScheduledDateTime: DateTime)
+    local procedure ScheduleDependencies(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; ScheduledDateTime: DateTime): Text[250]
     var
         PTEAppDependency: Record "D4P BC PTE App Dependency";
         DepPTEApp: Record "D4P BC PTE App";
         ScheduledUpdate: Record "D4P BC Scheduled PTE Update";
+        DependencyEntryNos: Text[250];
     begin
         PTEAppDependency.SetRange("PTE ID", PTEApp."ID");
         if not PTEAppDependency.FindSet() then
-            exit;
+            exit('');
 
         repeat
             DepPTEApp.SetRange("NuGet Package Name", PTEAppDependency."Dependency Package ID");
@@ -299,24 +332,67 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
             ScheduledUpdate.Status := ScheduledUpdate.Status::Pending;
             ScheduledUpdate."Created On" := CurrentDateTime();
             ScheduledUpdate.Insert(true);
+
+            if DependencyEntryNos <> '' then
+                DependencyEntryNos += ',';
+            DependencyEntryNos += Format(ScheduledUpdate."Entry No.");
         until PTEAppDependency.Next() = 0;
+
+        exit(DependencyEntryNos);
     end;
 
-    local procedure GetVersionFromRange(VersionRange: Text; var DepPTEApp: Record "D4P BC PTE App"): Text[50]
+    local procedure CheckDependenciesReady(ScheduledUpdate: Record "D4P BC Scheduled PTE Update"): Integer
+    var
+        DepUpdate: Record "D4P BC Scheduled PTE Update";
+        EntryNoList: List of [Text];
+        EntryNoText: Text;
+        EntryNo: Integer;
+        AllReady: Boolean;
+        MinCompletionBufferMs: BigInteger;
+    begin
+        // Returns: 0 = AllCompleted, 1 = StillPending, 2 = HasFailed
+        AllReady := true;
+        MinCompletionBufferMs := 10 * 60 * 1000; // 10 minutes in milliseconds
+        EntryNoList := ScheduledUpdate."Dependency Entry Nos.".Split(',');
+
+        foreach EntryNoText in EntryNoList do begin
+            if Evaluate(EntryNo, EntryNoText.Trim()) then begin
+                if not DepUpdate.Get(EntryNo) then
+                    exit(2);
+
+                case DepUpdate.Status of
+                    DepUpdate.Status::Failed,
+                    DepUpdate.Status::Cancelled:
+                        exit(2);
+                    DepUpdate.Status::Completed:
+                        if (CurrentDateTime() - DepUpdate."Completed On") < MinCompletionBufferMs then
+                            AllReady := false;
+                    DepUpdate.Status::Pending,
+                    DepUpdate.Status::"In Progress":
+                        AllReady := false;
+                end;
+            end;
+        end;
+
+        if AllReady then
+            exit(0)
+        else
+            exit(1);
+    end;
+
+    local procedure GetVersionFromRange(MinVersion: Text; var DepPTEApp: Record "D4P BC PTE App"): Text[50]
     var
         PTEAppVersion: Record "D4P BC PTE App Version";
-        MinVersion: Text;
+        NoMatchingVersionErr: Label 'Dependency ''%1'' requires minimum version %2, but no matching version was found. Please run "Get Latest Versions" on that app first.', Comment = '%1 = App Name, %2 = Min Version';
     begin
-        MinVersion := VersionRange.TrimStart('[').TrimStart('(');
-        MinVersion := MinVersion.Split(',').Get(1).Trim();
-
         PTEAppVersion.SetRange("PTE ID", DepPTEApp."ID");
-        PTEAppVersion.SetFilter("App Version", '>=%1', MinVersion);
         PTEAppVersion.SetCurrentKey("PTE ID", "Version Sort Key");
         PTEAppVersion.SetAscending("Version Sort Key", false);
+        if MinVersion <> '' then
+            PTEAppVersion.SetFilter("Version Sort Key", '>=%1', PTEAppVersion.ComputeSortKey(MinVersion));
         if PTEAppVersion.FindFirst() then
             exit(PTEAppVersion."App Version");
 
-        exit(CopyStr(DepPTEApp."Latest App Version", 1, 50));
+        Error(NoMatchingVersionErr, DepPTEApp."Name", MinVersion);
     end;
 }

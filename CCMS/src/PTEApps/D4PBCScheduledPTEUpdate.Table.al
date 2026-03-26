@@ -78,6 +78,11 @@ table 62020 "D4P BC Scheduled PTE Update"
             Caption = 'Error Message';
             ToolTip = 'Specifies the error message if the update failed.';
         }
+        field(130; "Dependency Entry Nos."; Text[250])
+        {
+            Caption = 'Dependency Entry Nos.';
+            ToolTip = 'Specifies the entry numbers of dependency updates that must complete before this update can be processed.';
+        }
     }
 
     keys

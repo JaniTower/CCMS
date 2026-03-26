@@ -21,3 +21,4 @@ launch.json
 cache_*
 ~$*
 CCMS/.claude/settings.local.json
+CCMS/.claude/settings.json

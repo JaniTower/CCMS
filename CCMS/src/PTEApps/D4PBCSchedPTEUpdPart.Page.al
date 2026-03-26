@@ -34,6 +34,10 @@ page 62060 "D4P BC Sched. PTE Upd. Part"
                 field("Error Message"; Rec."Error Message")
                 {
                 }
+                field("Dependency Entry Nos."; Rec."Dependency Entry Nos.")
+                {
+                    Visible = false;
+                }
             }
         }
     }

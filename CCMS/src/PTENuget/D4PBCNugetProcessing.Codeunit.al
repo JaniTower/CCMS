@@ -147,12 +147,25 @@ codeunit 62009 "D4P BC Nuget Processing"
                         PTEAppDependency.Init();
                         PTEAppDependency."PTE ID" := PTEId;
                         PTEAppDependency."Dependency Package ID" := CopyStr(DependencyId, 1, 250);
-                        PTEAppDependency."Version Range" := CopyStr(DependencyToken.AsObject().GetText('range'), 1, 50);
+                        PTEAppDependency."Version Range" := CopyStr(ParseMinVersion(DependencyToken.AsObject().GetText('range')), 1, 50);
                         PTEAppDependency.Insert();
                     end;
                 end;
             end;
         end;
+    end;
+
+    local procedure ParseMinVersion(VersionRange: Text): Text
+    var
+        MinVersion: Text;
+    begin
+        if VersionRange = '' then
+            exit('');
+        MinVersion := VersionRange.TrimStart('[').TrimStart('(');
+        MinVersion := MinVersion.Split(',').Get(1).Trim();
+        if MinVersion.EndsWith(']') or MinVersion.EndsWith(')') then
+            MinVersion := MinVersion.TrimEnd(']').TrimEnd(')');
+        exit(MinVersion);
     end;
 
     local procedure IsMicrosoftPlatformDependency(PackageId: Text): Boolean
