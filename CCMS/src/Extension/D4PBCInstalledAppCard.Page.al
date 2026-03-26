@@ -1,6 +1,7 @@
 namespace D4P.CCMS.Extension;
 
 using D4P.CCMS.Environment;
+using D4P.CCMS.PTEApps;
 
 page 62024 "D4P BC Installed App Card"
 {
@@ -65,6 +66,12 @@ page 62024 "D4P BC Installed App Card"
                 field("Last Uninstall Attempt Result"; Rec."Last Uninstall Attempt Result")
                 {
                 }
+            }
+            part(ScheduledPTEUpdates; "D4P BC Sched. PTE Upd. Part")
+            {
+                Caption = 'Scheduled PTE Updates';
+                SubPageLink = "Customer No." = field("Customer No."), "Tenant ID" = field("Tenant ID"), "Environment Name" = field("Environment Name"), "PTE App Name" = field("App Name");
+                Editable = true;
             }
         }
     }
@@ -194,11 +201,16 @@ page 62024 "D4P BC Installed App Card"
         UpdateAvailableStyleExpr: Text;
 
     trigger OnAfterGetRecord()
+    var
+        BCEnvironment: Record "D4P BC Environment";
     begin
         // Set style for App Name and Available Update Version when update is available
         if Rec."Available Update Version" <> '' then
             UpdateAvailableStyleExpr := Format(PageStyle::Attention)
         else
             UpdateAvailableStyleExpr := Format(PageStyle::Standard);
+
+        if BCEnvironment.Get(Rec."Customer No.", Rec."Tenant ID", Rec."Environment Name") then
+            CurrPage.ScheduledPTEUpdates.Page.SetEnvironmentContext(BCEnvironment);
     end;
 }

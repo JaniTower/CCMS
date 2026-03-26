@@ -20,3 +20,4 @@ launch.json
 .snapshots/
 cache_*
 ~$*
+CCMS/.claude/settings.local.json

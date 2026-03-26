@@ -1,6 +1,7 @@
 namespace D4P.CCMS.Extension;
 
 using D4P.CCMS.Environment;
+using D4P.CCMS.PTEApps;
 
 page 62008 "D4P BC Installed Apps List"
 {
@@ -169,6 +170,20 @@ page 62008 "D4P BC Installed Apps List"
                     EnvironmentManagement.UploadPTEExtension(BCEnvironment);
                 end;
             }
+            action(SchedulePTEUpdate)
+            {
+                Caption = 'Schedule PTE Update';
+                Image = Planning;
+                ToolTip = 'Schedule a PTE app update to run at a specific date and time.';
+                trigger OnAction()
+                var
+                    BCEnvironment: Record "D4P BC Environment";
+                    PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
+                begin
+                    BCEnvironment.Get(Rec."Customer No.", Rec."Tenant ID", Rec."Environment Name");
+                    PTEUpdateScheduler.ScheduleUpdate(BCEnvironment);
+                end;
+            }
             action(DeleteAll)
             {
                 Caption = 'Delete All';
@@ -212,6 +227,9 @@ page 62008 "D4P BC Installed Apps List"
             {
             }
             actionref(UploadPTEPromoted; UploadPTE)
+            {
+            }
+            actionref(SchedulePTEUpdatePromoted; SchedulePTEUpdate)
             {
             }
             actionref(DeleteAllPromoted; DeleteAll)

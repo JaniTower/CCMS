@@ -639,7 +639,7 @@ codeunit 62000 "D4P BC Environment Mgt"
         Message(UploadSuccessMsg, PTEApp."Name", PTEAppVersion."App Version");
     end;
 
-    local procedure DeployExtensionToEnvironment(var BCEnvironment: Record "D4P BC Environment"; var TempBlob: Codeunit "Temp Blob")
+    procedure DeployExtensionToEnvironment(var BCEnvironment: Record "D4P BC Environment"; var TempBlob: Codeunit "Temp Blob")
     var
         BCTenant: Record "D4P BC Tenant";
         JObject: JsonObject;

@@ -5,6 +5,7 @@ using D4P.CCMS.Tenant;
 using D4P.CCMS.Environment;
 using D4P.CCMS.Extension;
 using D4P.CCMS.Capacity;
+using D4P.CCMS.PTEApps;
 
 table 62047 "D4P BC Admin Center Cue"
 {
@@ -105,6 +106,14 @@ table 62047 "D4P BC Admin Center Cue"
             Editable = false;
             FieldClass = FlowField;
             ToolTip = 'Number of apps with available updates not published by Microsoft';
+        }
+        field(12; "Pending Sched. PTE Updates"; Integer)
+        {
+            CalcFormula = count("D4P BC Scheduled PTE Update" where(Status = const(Pending)));
+            Caption = 'Pending Scheduled PTE Updates';
+            Editable = false;
+            FieldClass = FlowField;
+            ToolTip = 'Number of scheduled PTE updates with pending status';
         }
     }
 
