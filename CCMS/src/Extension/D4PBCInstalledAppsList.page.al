@@ -259,7 +259,6 @@ page 62008 "D4P BC Installed Apps List"
 
     trigger OnAfterGetRecord()
     begin
-        // Set style for App Name and Available Update Version when update is available
         if Rec."Available Update Version" <> '' then
             UpdateAvailableStyleExpr := Format(PageStyle::Attention)
         else

@@ -5,6 +5,8 @@ using D4P.CCMS.Setup;
 using System.RestClient;
 codeunit 62011 "D4P BC GitHub Update" implements "D4P BC DevOps Update"
 {
+    Access = Internal;
+
     procedure GetNugetServiceTypeUrl(PTEApp: Record "D4P BC PTE App"; ServiceType: Text[100]): Text
     var
         DevOpsOrganization: Record "D4P BC DevOps Organization";
@@ -40,7 +42,7 @@ codeunit 62011 "D4P BC GitHub Update" implements "D4P BC DevOps Update"
         Token: SecretText;
     begin
         if not IsolatedStorage.Contains(TokenName) then
-            exit(Token); // Return empty token when no value is stored; caller must handle missing token (e.g., anonymous access or error).
+            exit(Token);
         IsolatedStorage.Get(TokenName, Token);
         exit(SecretText.SecretStrSubstNo(BearerLbl, Token));
     end;

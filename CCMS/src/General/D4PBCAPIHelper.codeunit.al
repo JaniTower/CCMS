@@ -6,6 +6,8 @@ using System.Security.Authentication;
 
 codeunit 62049 "D4P BC API Helper"
 {
+    Access = Internal;
+
     procedure SendAdminAPIRequest(var BCTenant: Record "D4P BC Tenant"; Method: Text; Endpoint: Text; RequestBody: Text; var ResponseText: Text): Boolean
     var
         HttpClient: HttpClient;
@@ -18,21 +20,17 @@ codeunit 62049 "D4P BC API Helper"
         AuthToken: SecretText;
         EndpointUrl: Text;
     begin
-        // Get OAuth token
         AuthToken := GetOAuthToken(BCTenant);
         if AuthToken.IsEmpty() then
             Error(FailedToObtainTokenErr, BCTenant."Tenant ID".ToText().Replace('{', '').Replace('}', ''));
 
-        // Build full endpoint URL
         EndpointUrl := GetAdminAPIBaseUrl() + Endpoint;
 
-        // Initialize the HTTP request
         HttpRequestMessage.SetRequestUri(EndpointUrl);
         HttpRequestMessage.Method := Method;
         HttpRequestMessage.GetHeaders(Headers);
         Headers.Add('Authorization', SecretStrSubstNo('Bearer %1', AuthToken));
 
-        // Add request body if provided
         if RequestBody <> '' then begin
             RequestContent.WriteFrom(RequestBody);
             RequestContent.GetHeaders(Headers);
@@ -41,7 +39,6 @@ codeunit 62049 "D4P BC API Helper"
             HttpRequestMessage.Content := RequestContent;
         end;
 
-        // Send the request
         if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then
             Error(FailedToSendRequestErr);
 
@@ -101,25 +98,21 @@ codeunit 62049 "D4P BC API Helper"
         EndpointUrl: Text;
         TenantIdText: Text;
     begin
-        // Format tenant ID (remove braces)
         TenantIdText := Format(AADTenantId);
         TenantIdText := DelChr(TenantIdText, '=', '{}');
 
-        // Build full endpoint URL
         EndpointUrl := StrSubstNo('%1/%2/%3%4',
             GetAutomationAPIBaseUrl(),
             TenantIdText,
             EnvironmentName,
             Endpoint);
 
-        // Initialize the HTTP request
         HttpRequestMessage.SetRequestUri(EndpointUrl);
         HttpRequestMessage.Method := Method;
         HttpRequestMessage.GetHeaders(Headers);
         Headers.Add('Authorization', SecretStrSubstNo('Bearer %1', AuthToken));
         Headers.Add('Accept', 'application/json');
 
-        // Add request body if provided
         if RequestBody <> '' then begin
             RequestContent.WriteFrom(RequestBody);
             RequestContent.GetHeaders(Headers);
@@ -128,7 +121,6 @@ codeunit 62049 "D4P BC API Helper"
             HttpRequestMessage.Content := RequestContent;
         end;
 
-        // Send the request
         if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then
             Error(FailedToConnectErr);
 
@@ -210,13 +202,11 @@ codeunit 62049 "D4P BC API Helper"
         AADTenantIdText: Text;
         AccessTokenURL: Text;
     begin
-        // Format AAD Tenant ID
         AADTenantIdText := Format(AADTenantId);
         AADTenantIdText := DelChr(AADTenantIdText, '=', '{}');
 
         AccessTokenURL := 'https://login.microsoftonline.com/' + AADTenantIdText + '/oauth2/v2.0/token';
 
-        // Use standard BC API scope
         Scopes.Add('https://api.businesscentral.dynamics.com/.default');
 
         if not OAuth2.AcquireTokenWithClientCredentials(ClientID, ClientSecret, AccessTokenURL, '', Scopes, AuthToken) then

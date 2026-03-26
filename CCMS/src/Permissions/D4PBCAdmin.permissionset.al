@@ -46,6 +46,7 @@ permissionset 62000 "D4P BC ADMIN"
         tabledata "D4P BC DevOps Organization" = RIMD,
         tabledata "D4P BC Environment Operation" = RIMD,
         tabledata "D4P BC PTE Object Range" = RIMD,
+        tabledata "D4P BC Scheduled PTE Update" = RIMD,
 
         // Table Objects
         table "D4P BC Customer" = X,
@@ -73,6 +74,7 @@ permissionset 62000 "D4P BC ADMIN"
         table "D4P BC DevOps Organization" = X,
         table "D4P BC Environment Operation" = X,
         table "D4P BC PTE Object Range" = X,
+        table "D4P BC Scheduled PTE Update" = X,
 
         // Pages
         page "D4P BC Customers List" = X,
@@ -118,6 +120,11 @@ permissionset 62000 "D4P BC ADMIN"
         page "D4P BC PTE Obj. Ranges FactBox" = X,
         page "D4P BC Admin Headline" = X,
         page "D4P BC Capacity List" = X,
+        page "D4P BC Installed App Card" = X,
+        page "D4P BC Scheduled PTE Updates" = X,
+        page "D4P BC Sched. PTE Upd. Part" = X,
+        page "D4P BC Schedule PTE Dialog" = X,
+        page "D4P BC PTE App Dep. FactBox" = X,
 
         // Codeunits
         codeunit "D4P BC Environment Mgt" = X,
@@ -129,6 +136,12 @@ permissionset 62000 "D4P BC ADMIN"
         codeunit "D4P Telemetry Helper" = X,
         codeunit "D4P BC Operations Helper" = X,
         codeunit "D4P BC App Registration" = X,
+        codeunit "D4P BC PTE Update Scheduler" = X,
+        codeunit "D4P BC Nuget Processing" = X,
+        codeunit "D4P BC API Helper" = X,
+        codeunit "D4P BC Azure Update" = X,
+        codeunit "D4P BC GitHub Update" = X,
+        codeunit "D4P BC NoDevOps Update" = X,
 
         // Reports
         report "D4P Load Data" = X,

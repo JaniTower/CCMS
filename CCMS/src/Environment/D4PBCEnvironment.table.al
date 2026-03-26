@@ -78,6 +78,7 @@ table 62002 "D4P BC Environment"
         field(13; "AAD Tenant ID"; Guid)
         {
             Caption = 'AAD Tenant ID';
+            ToolTip = 'Specifies the Azure Active Directory tenant ID of the environment.';
         }
         field(14; "Web Client Login URL"; Text[250])
         {

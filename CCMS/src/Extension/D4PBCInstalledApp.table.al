@@ -55,6 +55,7 @@ table 62003 "D4P BC Installed App"
         field(9; "Last Operation Id"; Guid)
         {
             Caption = 'Last Operation Id';
+            ToolTip = 'Specifies the ID of the last operation performed on this app.';
         }
         field(10; "Last Update Attempt Result"; Enum "D4P Update Attempt Result")
         {
@@ -64,6 +65,7 @@ table 62003 "D4P BC Installed App"
         field(11; "Last Uninstall Operation Id"; Guid)
         {
             Caption = 'Last Uninstall Operation Id';
+            ToolTip = 'Specifies the ID of the last uninstall operation performed on this app.';
         }
         field(12; "Last Uninstall Attempt Result"; Enum "D4P Uninstall Attempt Result")
         {

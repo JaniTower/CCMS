@@ -81,9 +81,9 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         if ScheduledUpdate."Dependency Entry Nos." <> '' then begin
             DependencyResult := CheckDependenciesReady(ScheduledUpdate);
             case DependencyResult of
-                1: // StillPending — skip, retry next cycle
+                1:
                     exit;
-                2: // HasFailed — fail this entry too
+                2:
                     begin
                         FailUpdate(ScheduledUpdate, StrSubstNo(DependencyFailedErr, ScheduledUpdate."Dependency Entry Nos."));
                         exit;
@@ -350,9 +350,8 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         AllReady: Boolean;
         MinCompletionBufferMs: BigInteger;
     begin
-        // Returns: 0 = AllCompleted, 1 = StillPending, 2 = HasFailed
         AllReady := true;
-        MinCompletionBufferMs := 10 * 60 * 1000; // 10 minutes in milliseconds
+        MinCompletionBufferMs := 10 * 60 * 1000;
         EntryNoList := ScheduledUpdate."Dependency Entry Nos.".Split(',');
 
         foreach EntryNoText in EntryNoList do begin

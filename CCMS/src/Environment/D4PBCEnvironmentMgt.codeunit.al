@@ -12,12 +12,13 @@ using System.Utilities;
 
 codeunit 62000 "D4P BC Environment Mgt"
 {
+    Access = Internal;
+
     var
         APIHelper: Codeunit "D4P BC API Helper";
 
     procedure ShowDebugMessagePublic(ResponseText: Text; ActionName: Text)
     begin
-        // Kept for backward compatibility - now handled by API Helper
     end;
 
     procedure GetEnvironments(var BCTenant: Record "D4P BC Tenant")
@@ -82,7 +83,7 @@ codeunit 62000 "D4P BC Environment Mgt"
                 if JsonObjectLoop.Get('aadTenantId', JsonTokenField) then begin
                     JsonValue := JsonTokenField.AsValue();
                     if not Evaluate(BCEnvironment."AAD Tenant ID", JsonValue.AsText()) then
-                        BCEnvironment."AAD Tenant ID" := CreateGuid(); // Fallback if evaluation fails
+                        BCEnvironment."AAD Tenant ID" := CreateGuid();
                 end;
                 if JsonObjectLoop.Get('webClientLoginUrl', JsonTokenField) then begin
                     JsonValue := JsonTokenField.AsValue();
@@ -111,12 +112,12 @@ codeunit 62000 "D4P BC Environment Mgt"
                 if JsonObjectLoop.Get('SoftDeletedOn', JsonTokenField) then begin
                     JsonValue := JsonTokenField.AsValue();
                     if not Evaluate(BCEnvironment."Soft Deleted On", JsonValue.AsText()) then
-                        BCEnvironment."Soft Deleted On" := 0DT; // Clear if evaluation fails
+                        BCEnvironment."Soft Deleted On" := 0DT;
                 end;
                 if JsonObjectLoop.Get('HardDeletePendingOn', JsonTokenField) then begin
                     JsonValue := JsonTokenField.AsValue();
                     if not Evaluate(BCEnvironment."Hard Delete Pending On", JsonValue.AsText()) then
-                        BCEnvironment."Hard Delete Pending On" := 0DT; // Clear if evaluation fails
+                        BCEnvironment."Hard Delete Pending On" := 0DT;
                 end;
                 if JsonObjectLoop.Get('DeleteReason', JsonTokenField) then begin
                     JsonValue := JsonTokenField.AsValue();
@@ -134,19 +135,18 @@ codeunit 62000 "D4P BC Environment Mgt"
                     JsonValue := JsonTokenField.AsValue();
                     BCEnvironment."Linked PowerPlatform Env ID" := JsonValue.AsText();
                 end;
-                // Handle nested versionDetails object
                 if JsonObjectLoop.Get('versionDetails', JsonTokenField) then
                     if JsonTokenField.IsObject() then begin
                         JsonVersionDetails := JsonTokenField.AsObject();
                         if JsonVersionDetails.Get('gracePeriodStartDate', JsonTokenField) then begin
                             JsonValue := JsonTokenField.AsValue();
                             if not Evaluate(BCEnvironment."Grace Period Start Date", JsonValue.AsText()) then
-                                BCEnvironment."Grace Period Start Date" := 0DT; // Clear if evaluation fails
+                                BCEnvironment."Grace Period Start Date" := 0DT;
                         end;
                         if JsonVersionDetails.Get('enforcedUpdatePeriodStartDate', JsonTokenField) then begin
                             JsonValue := JsonTokenField.AsValue();
                             if not Evaluate(BCEnvironment."Enforced Update Period Start", JsonValue.AsText()) then
-                                BCEnvironment."Enforced Update Period Start" := 0DT; // Clear if evaluation fails
+                                BCEnvironment."Enforced Update Period Start" := 0DT;
                         end;
                     end;
 
@@ -319,7 +319,6 @@ codeunit 62000 "D4P BC Environment Mgt"
     begin
         BCTenant.Get(BCEnvironment."Customer No.", BCEnvironment."Tenant ID");
 
-        // Call Admin API to get environment updates
         Endpoint := '/applications/' + BCEnvironment."Application Family" + '/environments/' + BCEnvironment.Name + '/updates';
         if APIHelper.SendAdminAPIRequest(BCTenant, 'GET', Endpoint, '', ResponseText) then begin
             JsonResponse.ReadFrom(ResponseText);
@@ -331,7 +330,6 @@ codeunit 62000 "D4P BC Environment Mgt"
                 foreach JsonTokenLoop in JsonArray do begin
                     JsonObjectLoop := JsonTokenLoop.AsObject();
 
-                    // Check if this version is selected
                     selected := false;
                     if JsonObjectLoop.Get('selected', JsonTokenLoop) then begin
                         JsonValue := JsonTokenLoop.AsValue();
@@ -339,52 +337,44 @@ codeunit 62000 "D4P BC Environment Mgt"
                     end;
 
                     if selected then begin
-                        // Get the target version
                         if JsonObjectLoop.Get('targetVersion', JsonTokenLoop) then begin
                             JsonValue := JsonTokenLoop.AsValue();
                             targetVersion := JsonValue.AsText();
                         end;
 
-                        // Get availability status
                         available := false;
                         if JsonObjectLoop.Get('available', JsonTokenLoop) then begin
                             JsonValue := JsonTokenLoop.AsValue();
                             available := JsonValue.AsBoolean();
                         end;
 
-                        // Get target version type
                         targetVersionType := '';
                         if JsonObjectLoop.Get('targetVersionType', JsonTokenLoop) then begin
                             JsonValue := JsonTokenLoop.AsValue();
                             targetVersionType := JsonValue.AsText();
                         end;
 
-                        // Get schedule details if available (for released versions)
                         if JsonObjectLoop.Get('scheduleDetails', JsonTokenLoop) then begin
                             JsonScheduleDetails := JsonTokenLoop.AsObject();
 
-                            // Get selected date time
                             if JsonScheduleDetails.Get('selectedDateTime', JsonTokenLoop) then begin
                                 JsonValue := JsonTokenLoop.AsValue();
                                 if not JsonValue.IsNull() then
                                     selectedDateTime := JsonValue.AsDateTime();
                             end;
 
-                            // Get latest selectable date
                             if JsonScheduleDetails.Get('latestSelectableDate', JsonTokenLoop) then begin
                                 JsonValue := JsonTokenLoop.AsValue();
                                 if not JsonValue.IsNull() then
                                     latestSelectableDate := JsonValue.AsDateTime();
                             end;
 
-                            // Get ignore update window
                             ignoreUpdateWindow := false;
                             if JsonScheduleDetails.Get('ignoreUpdateWindow', JsonTokenLoop) then begin
                                 JsonValue := JsonTokenLoop.AsValue();
                                 ignoreUpdateWindow := JsonValue.AsBoolean();
                             end;
 
-                            // Get rollout status
                             rolloutStatus := '';
                             if JsonScheduleDetails.Get('rolloutStatus', JsonTokenLoop) then begin
                                 JsonValue := JsonTokenLoop.AsValue();
@@ -392,7 +382,6 @@ codeunit 62000 "D4P BC Environment Mgt"
                             end;
                         end;
 
-                        // Get expected availability if available (for unreleased versions)
                         expectedAvailability := '';
                         if JsonObjectLoop.Get('expectedAvailability', JsonTokenLoop) then begin
                             JsonExpectedAvailability := JsonTokenLoop.AsObject();
@@ -412,7 +401,6 @@ codeunit 62000 "D4P BC Environment Mgt"
                     end;
                 end;
 
-                // Update the environment with the selected update information
                 if targetVersion <> '' then begin
                     BCEnvironment."Target Version" := targetVersion;
                     BCEnvironment."Available" := available;
@@ -501,19 +489,10 @@ codeunit 62000 "D4P BC Environment Mgt"
                     JsonValue := JsonTokenLoop.AsValue();
                     appId := JsonValue.AsText();
                 end;
-                // if JsonObjectLoop.Get('name', JsonTokenLoop) then begin
-                //     JsonValue := JsonTokenLoop.AsValue();
-                //     appName := JsonValue.AsText();
-                // end;
-                // if JsonObjectLoop.Get('publisher', JsonTokenLoop) then begin
-                //     JsonValue := JsonTokenLoop.AsValue();
-                //     appPublisher := JsonValue.AsText();
-                // end;
                 if JsonObjectLoop.Get('version', JsonTokenLoop) then begin
                     JsonValue := JsonTokenLoop.AsValue();
                     appVersion := JsonValue.AsText();
                 end;
-                //Update the app entry
                 if InstalledApp.Get(BCTenant."Customer No.", BCTenant."Tenant ID", BCEnvironment.Name, appId) then begin
                     InstalledApp."Available Update Version" := appVersion;
                     InstalledApp.Modify();
@@ -605,20 +584,16 @@ codeunit 62000 "D4P BC Environment Mgt"
         NoAppFileErr: Label 'No .app file found in the NuGet package.';
         UploadSuccessMsg: Label 'PTE extension %1 v%2 has been uploaded and installation has been scheduled.', Comment = '%1 = App Name, %2 = Version';
     begin
-        // 1. Select PTE App
         if Page.RunModal(Page::"D4P BC PTE App List", PTEApp) <> Action::LookupOK then
             Error(SelectAppErr);
 
-        // 2. Select Version
         PTEAppVersion.SetRange("PTE ID", PTEApp."ID");
         if Page.RunModal(Page::"D4P BC PTE App Version List", PTEAppVersion) <> Action::LookupOK then
             Error(SelectVersionErr);
 
-        // 3. Download .nupkg from NuGet
         if not NugetProcessing.DownloadPackageToStream(PTEAppVersion, NupkgTempBlob) then
             Error(DownloadFailedErr);
 
-        // 4. Extract .app from .nupkg (ZIP)
         NupkgTempBlob.CreateInStream(NupkgInStream);
         DataCompression.OpenZipArchive(NupkgInStream, false);
         DataCompression.GetEntryList(EntryList);
@@ -634,7 +609,6 @@ codeunit 62000 "D4P BC Environment Mgt"
         if not TempBlob.HasValue() then
             Error(NoAppFileErr);
 
-        // 5. Upload to environment
         DeployExtensionToEnvironment(BCEnvironment, TempBlob);
         Message(UploadSuccessMsg, PTEApp."Name", PTEAppVersion."App Version");
     end;
@@ -658,13 +632,11 @@ codeunit 62000 "D4P BC Environment Mgt"
         ResponseText: Text;
         UploadSystemId: Text;
     begin
-        // 1. Authenticate
         BCTenant.Get(BCEnvironment."Customer No.", BCEnvironment."Tenant ID");
         AuthToken := APIHelper.GetAutomationApiOAuthToken(BCEnvironment."AAD Tenant ID", BCTenant."Client ID", BCTenant.GetClientSecret());
         if AuthToken.IsEmpty() then
             Error(FailedToObtainTokenErr);
 
-        // 2. Get first company ID
         if not APIHelper.SendAutomationAPIRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
             'GET', '/api/microsoft/automation/v2.0/companies', '',
@@ -682,7 +654,6 @@ codeunit 62000 "D4P BC Environment Mgt"
         JObject.Get('id', JToken);
         CompanyId := JToken.AsValue().AsText();
 
-        // 3. Get or create extension upload entity
         APIHelper.SendAutomationAPIRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
             'GET',
@@ -722,7 +693,6 @@ codeunit 62000 "D4P BC Environment Mgt"
             ETag := JToken.AsValue().AsText();
         end;
 
-        // 4. Upload .app file content
         TempBlob.CreateInStream(AppInStream);
         if not APIHelper.SendAutomationAPIBinaryRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
@@ -732,7 +702,6 @@ codeunit 62000 "D4P BC Environment Mgt"
         then
             Error(FailedToUploadContentErr, ResponseText);
 
-        // 5. Trigger deployment via Microsoft.NAV.upload action
         if not APIHelper.SendAutomationAPIRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
             'POST',
@@ -836,17 +805,14 @@ codeunit 62000 "D4P BC Environment Mgt"
         TempAvailableUpdate.Reset();
         TempAvailableUpdate.DeleteAll();
 
-        // Show progress dialog
         ProgressDialog.Open(FetchingUpdatesMsg);
 
-        // Call Admin API to get available updates
         Endpoint := '/applications/' + BCEnvironment."Application Family" + '/environments/' + BCEnvironment.Name + '/updates';
         if not APIHelper.SendAdminAPIRequest(BCTenant, 'GET', Endpoint, '', ResponseText) then begin
             ProgressDialog.Close();
             Error(FailedToFetchErr, ResponseText);
         end;
 
-        // Debug mode: Show API response
         if BCSetup."Debug Mode" then
             Message('DEBUG - Get Available Updates:\%1', ResponseText);
 
@@ -874,47 +840,39 @@ codeunit 62000 "D4P BC Environment Mgt"
                 TempAvailableUpdate.Init();
                 TempAvailableUpdate."Entry No." := EntryNo;
 
-                // Update progress dialog
                 ProgressDialog.Update(1, CurrentUpdate);
                 ProgressDialog.Update(2, TotalUpdates);
 
-                // Get target version
                 if JsonObjectLoop.Get('targetVersion', JsonToken) then begin
                     JsonValue := JsonToken.AsValue();
                     TempAvailableUpdate."Target Version" := CopyStr(JsonValue.AsText(), 1, MaxStrLen(TempAvailableUpdate."Target Version"));
                     ProgressDialog.Update(3, TempAvailableUpdate."Target Version");
                 end;
 
-                // Get availability status
                 if JsonObjectLoop.Get('available', JsonToken) then begin
                     JsonValue := JsonToken.AsValue();
                     TempAvailableUpdate.Available := JsonValue.AsBoolean();
                 end;
 
-                // Get selected status
                 if JsonObjectLoop.Get('selected', JsonToken) then begin
                     JsonValue := JsonToken.AsValue();
                     TempAvailableUpdate.Selected := JsonValue.AsBoolean();
                 end;
 
-                // Get target version type
                 if JsonObjectLoop.Get('targetVersionType', JsonToken) then begin
                     JsonValue := JsonToken.AsValue();
                     TempAvailableUpdate."Target Version Type" := CopyStr(JsonValue.AsText(), 1, MaxStrLen(TempAvailableUpdate."Target Version Type"));
                 end;
 
-                // Get schedule details if available (for released versions)
                 if JsonObjectLoop.Get('scheduleDetails', JsonToken) then begin
                     JsonScheduleDetails := JsonToken.AsObject();
 
-                    // Get selected date time
                     if JsonScheduleDetails.Get('selectedDateTime', JsonToken) then begin
                         JsonValue := JsonToken.AsValue();
                         if not JsonValue.IsNull() then
                             TempAvailableUpdate."Selected DateTime" := DT2Date(JsonValue.AsDateTime());
                     end;
 
-                    // Get latest selectable date - try both field names (API inconsistency)
                     if JsonScheduleDetails.Get('latestSelectableDateTime', JsonToken) then begin
                         JsonValue := JsonToken.AsValue();
                         if not JsonValue.IsNull() then
@@ -926,20 +884,17 @@ codeunit 62000 "D4P BC Environment Mgt"
                                 TempAvailableUpdate."Latest Selectable Date" := DT2Date(JsonValue.AsDateTime());
                         end;
 
-                    // Get ignore update window
                     if JsonScheduleDetails.Get('ignoreUpdateWindow', JsonToken) then begin
                         JsonValue := JsonToken.AsValue();
                         TempAvailableUpdate."Ignore Update Window" := JsonValue.AsBoolean();
                     end;
 
-                    // Get rollout status
                     if JsonScheduleDetails.Get('rolloutStatus', JsonToken) then begin
                         JsonValue := JsonToken.AsValue();
                         TempAvailableUpdate."Rollout Status" := CopyStr(JsonValue.AsText(), 1, MaxStrLen(TempAvailableUpdate."Rollout Status"));
                     end;
                 end;
 
-                // Get expected availability if available (for unreleased versions)
                 if JsonObjectLoop.Get('expectedAvailability', JsonToken) then begin
                     JsonExpectedAvailability := JsonToken.AsObject();
 
@@ -982,16 +937,12 @@ codeunit 62000 "D4P BC Environment Mgt"
         BCTenant.Get(BCEnvironment."Customer No.", BCEnvironment."Tenant ID");
         BCSetup.Get();
 
-        // Determine if the version is available (has a date) or not (has month/year)
         IsAvailable := (SelectedDate <> 0D);
 
-        // Build JSON request body
         JsonObject.Add('selected', true);
 
         if IsAvailable then begin
-            // Convert Date to DateTime (at midnight)
             SelectedDateTime := CreateDateTime(SelectedDate, 0T);
-            // For available versions, include schedule details
             JsonScheduleDetails.Add('selectedDateTime', SelectedDateTime);
             JsonScheduleDetails.Add('ignoreUpdateWindow', false);
             JsonObject.Add('scheduleDetails', JsonScheduleDetails);
@@ -999,20 +950,16 @@ codeunit 62000 "D4P BC Environment Mgt"
 
         JsonObject.WriteTo(RequestBody);
 
-        // Debug mode: Show request body
         if BCSetup."Debug Mode" then
             Message('DEBUG - Select Target Version Request:\Target Version: %1\Request Body: %2', TargetVersion, RequestBody);
 
-        // Call Admin API to select target version
         Endpoint := '/applications/' + BCEnvironment."Application Family" + '/environments/' + BCEnvironment.Name + '/updates/' + TargetVersion;
         if not APIHelper.SendAdminAPIRequest(BCTenant, 'PATCH', Endpoint, RequestBody, ResponseText) then
             Error(FailedToSelectErr, ResponseText);
 
-        // Debug mode: Show API response
         if BCSetup."Debug Mode" then
             Message('DEBUG - Select Target Version Response:\%1', ResponseText);
 
-        // Update environment record
         BCEnvironment."Target Version" := TargetVersion;
         if IsAvailable then begin
             BCEnvironment."Selected DateTime" := SelectedDateTime;
@@ -1033,7 +980,6 @@ codeunit 62000 "D4P BC Environment Mgt"
         Endpoint: Text;
         ResponseText: Text;
     begin
-        // Call Admin API to reschedule environment upgrade
         Endpoint := '/applications/businesscentral/environments/' + EnvironmentName + '/updates';
         if APIHelper.SendAdminAPIRequest(BCTenant, 'PUT', Endpoint, '', ResponseText) then
             Message(EnvironmentUpgradeScheduledMsg, EnvironmentName, TargetVersion, UpgradeDate)
@@ -1055,14 +1001,11 @@ codeunit 62000 "D4P BC Environment Mgt"
     begin
         BCTenant.Get(BCEnvironment."Customer No.", BCEnvironment."Tenant ID");
 
-        // Determine if we're removing (empty string) or setting the key
         IsRemoving := (BCEnvironment."Application Insights String" = '');
 
-        // Create JSON request body
         JsonObject.Add('key', BCEnvironment."Application Insights String");
         JsonObject.WriteTo(RequestBody);
 
-        // Call Admin API to set Application Insights key
         Endpoint := '/applications/businesscentral/environments/' + BCEnvironment.Name + '/settings/appinsightskey';
         if APIHelper.SendAdminAPIRequest(BCTenant, 'POST', Endpoint, RequestBody, ResponseText) then begin
             if IsRemoving then

@@ -6,6 +6,8 @@ using System.RestClient;
 
 codeunit 62008 "D4P BC Azure Update" implements "D4P BC DevOps Update"
 {
+    Access = Internal;
+
     procedure GetNugetServiceTypeUrl(PTEApp: Record "D4P BC PTE App"; ServiceType: Text[100]): Text
     var
         DevOpsOrganization: Record "D4P BC DevOps Organization";
@@ -41,7 +43,7 @@ codeunit 62008 "D4P BC Azure Update" implements "D4P BC DevOps Update"
         Token: SecretText;
     begin
         if not IsolatedStorage.Contains(TokenName) then
-            exit(Token); // No token stored for this organization; return empty value so the caller can handle missing authorization (e.g., anonymous access or explicit error handling).
+            exit(Token);
         IsolatedStorage.Get(TokenName, Token);
         exit(SecretText.SecretStrSubstNo(BearerLbl, Token));
     end;
@@ -54,8 +56,6 @@ codeunit 62008 "D4P BC Azure Update" implements "D4P BC DevOps Update"
     procedure IsEnabled(): Boolean
     begin
         exit(false);
-        // Azure DevOps support is intentionally disabled by default
-        // pending final testing/completion of this implementation.
     end;
 
     procedure GetTokenKey(DevOpsOrganization: Record "D4P BC DevOps Organization"): Text

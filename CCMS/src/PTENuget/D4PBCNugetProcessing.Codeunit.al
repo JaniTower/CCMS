@@ -6,6 +6,8 @@ using System.RestClient;
 using System.Utilities;
 codeunit 62009 "D4P BC Nuget Processing"
 {
+    Access = Internal;
+
     procedure GetPTEAppVersions(var PTEApp: Record "D4P BC PTE App")
     var
         BCDevOpsUpdate: Interface "D4P BC DevOps Update";
