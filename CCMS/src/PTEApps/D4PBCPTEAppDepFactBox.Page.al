@@ -25,4 +25,10 @@ page 62062 "D4P BC PTE App Dep. FactBox"
             }
         }
     }
+
+    procedure SetPTEApp(PTEId: Guid)
+    begin
+        Rec.SetRange("PTE ID", PTEId);
+        CurrPage.Update(false);
+    end;
 }

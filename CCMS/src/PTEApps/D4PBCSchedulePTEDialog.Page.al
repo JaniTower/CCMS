@@ -74,10 +74,6 @@ page 62058 "D4P BC Schedule PTE Dialog"
                         LookupApp();
                     end;
                 }
-            }
-            group(Version)
-            {
-                Caption = 'Version';
 
                 field(AppVersion; SelectedVersion)
                 {
@@ -92,6 +88,21 @@ page 62058 "D4P BC Schedule PTE Dialog"
                         if Page.RunModal(Page::"D4P BC PTE App Version List", PTEAppVersion) = Action::LookupOK then
                             SelectedVersion := PTEAppVersion."App Version";
                     end;
+                }
+            }
+            group(DependenciesGroup)
+            {
+                Caption = 'Dependencies';
+                Visible = HasDependencies;
+
+                field(InstallDependencies; InstallDependencies)
+                {
+                    Caption = 'Install Dependencies';
+                    ToolTip = 'Specifies whether to also schedule the installation of dependency apps before this update.';
+                }
+                part(DependenciesPart; "D4P BC PTE App Dep. FactBox")
+                {
+                    Caption = '';
                 }
             }
             group(Schedule)
@@ -148,6 +159,8 @@ page 62058 "D4P BC Schedule PTE Dialog"
         SelectedTenantID: Guid;
         SelectedTenantName: Text[100];
         SelectedVersion: Text[50];
+        HasDependencies: Boolean;
+        InstallDependencies: Boolean;
 
     trigger OnOpenPage()
     begin
@@ -173,6 +186,7 @@ page 62058 "D4P BC Schedule PTE Dialog"
             PTEAppContext := PTEApp;
             SelectedAppName := PTEApp."Name";
             SelectedVersion := '';
+            UpdateDependencies();
         end;
     end;
 
@@ -202,13 +216,23 @@ page 62058 "D4P BC Schedule PTE Dialog"
         PTEAppContext := PTEApp;
         SelectedAppName := PTEApp."Name";
         AppIsSet := true;
+        UpdateDependencies();
+    end;
+
+    local procedure UpdateDependencies()
+    var
+        PTEAppDependency: Record "D4P BC PTE App Dependency";
+    begin
+        PTEAppDependency.SetRange("PTE ID", PTEAppContext."ID");
+        HasDependencies := not PTEAppDependency.IsEmpty();
+        CurrPage.DependenciesPart.Page.SetPTEApp(PTEAppContext."ID");
     end;
 
     local procedure CreateScheduledUpdate()
     var
         PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
     begin
-        PTEUpdateScheduler.CreateAndScheduleUpdate(EnvironmentContext, PTEAppContext, SelectedVersion, ScheduleDate, ScheduleTime);
+        PTEUpdateScheduler.CreateAndScheduleUpdate(EnvironmentContext, PTEAppContext, SelectedVersion, ScheduleDate, ScheduleTime, InstallDependencies);
         CurrPage.Close();
     end;
 }
