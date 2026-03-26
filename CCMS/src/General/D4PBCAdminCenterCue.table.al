@@ -109,8 +109,8 @@ table 62047 "D4P BC Admin Center Cue"
         }
         field(12; "Pending Sched. PTE Updates"; Integer)
         {
-            CalcFormula = count("D4P BC Scheduled PTE Update" where(Status = const(Pending)));
-            Caption = 'Pending Scheduled PTE Updates';
+            CalcFormula = count("D4P BC Scheduled PTE Update");
+            Caption = 'Scheduled PTE Updates';
             Editable = false;
             FieldClass = FlowField;
             ToolTip = 'Number of scheduled PTE updates with pending status';

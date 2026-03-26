@@ -171,7 +171,6 @@ page 62034 "D4P BC Admin Center Cues"
                     var
                         ScheduledPTEUpdate: Record "D4P BC Scheduled PTE Update";
                     begin
-                        ScheduledPTEUpdate.SetRange(Status, ScheduledPTEUpdate.Status::Pending);
                         Page.Run(Page::"D4P BC Scheduled PTE Updates", ScheduledPTEUpdate);
                     end;
                 }

@@ -1072,4 +1072,29 @@ codeunit 62000 "D4P BC Environment Mgt"
         end else
             Error(FailedToSetKeyErr, ResponseText);
     end;
+
+    procedure DeleteAllInstalledApps(var InstalledApp: Record "D4P BC Installed App"): Boolean
+    var
+        RecordCount: Integer;
+        DeletedSuccessMsg: Label '%1 installed apps records deleted.', Comment = '%1 = Number of records';
+        DeleteMsg: Label 'Are you sure you want to delete all %1 fetched installed apps records?', Comment = '%1 = Number of records';
+    begin
+        RecordCount := InstalledApp.Count();
+        if RecordCount = 0 then
+            exit(false);
+
+        if not Confirm(DeleteMsg, false, RecordCount) then
+            exit(false);
+
+        InstalledApp.DeleteAll();
+        Message(DeletedSuccessMsg, RecordCount);
+        exit(true);
+    end;
+
+    procedure GetUpdateAvailableStyleExpr(AvailableUpdateVersion: Text): Text
+    begin
+        if AvailableUpdateVersion <> '' then
+            exit(Format(PageStyle::Attention));
+        exit(Format(PageStyle::Standard));
+    end;
 }

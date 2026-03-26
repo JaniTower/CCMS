@@ -71,7 +71,6 @@ page 62024 "D4P BC Installed App Card"
             {
                 Caption = 'Scheduled PTE Updates';
                 SubPageLink = "Customer No." = field("Customer No."), "Tenant ID" = field("Tenant ID"), "Environment Name" = field("Environment Name"), "PTE App Name" = field("App Name");
-                Editable = true;
             }
         }
     }
@@ -157,20 +156,11 @@ page 62024 "D4P BC Installed App Card"
                 trigger OnAction()
                 var
                     InstalledApp: Record "D4P BC Installed App";
-                    RecordCount: Integer;
-                    DeletedSuccessMsg: Label '%1 installed apps records deleted.', Comment = '%1 = Number of records';
-                    DeleteMsg: Label 'Are you sure you want to delete all %1 fetched installed apps records?', Comment = '%1 = Number of records';
+                    EnvironmentManagement: Codeunit "D4P BC Environment Mgt";
                 begin
                     InstalledApp.CopyFilters(Rec);
-                    RecordCount := InstalledApp.Count();
-                    if RecordCount = 0 then
-                        exit;
-
-                    if Confirm(DeleteMsg, false, RecordCount) then begin
-                        InstalledApp.DeleteAll();
+                    if EnvironmentManagement.DeleteAllInstalledApps(InstalledApp) then
                         CurrPage.Update(false);
-                        Message(DeletedSuccessMsg, RecordCount);
-                    end;
                 end;
             }
         }
@@ -203,14 +193,11 @@ page 62024 "D4P BC Installed App Card"
     trigger OnAfterGetRecord()
     var
         BCEnvironment: Record "D4P BC Environment";
+        EnvironmentManagement: Codeunit "D4P BC Environment Mgt";
     begin
-        // Set style for App Name and Available Update Version when update is available
-        if Rec."Available Update Version" <> '' then
-            UpdateAvailableStyleExpr := Format(PageStyle::Attention)
-        else
-            UpdateAvailableStyleExpr := Format(PageStyle::Standard);
+        UpdateAvailableStyleExpr := EnvironmentManagement.GetUpdateAvailableStyleExpr(Rec."Available Update Version");
 
         if BCEnvironment.Get(Rec."Customer No.", Rec."Tenant ID", Rec."Environment Name") then
-            CurrPage.ScheduledPTEUpdates.Page.SetEnvironmentContext(BCEnvironment);
+            CurrPage.ScheduledPTEUpdates.Page.SetContext(BCEnvironment, Rec."App Name");
     end;
 }

@@ -1,5 +1,7 @@
 namespace D4P.CCMS.PTEApps;
 
+using System.Threading;
+
 page 62053 "D4P BC Scheduled PTE Updates"
 {
     ApplicationArea = All;
@@ -68,23 +70,47 @@ page 62053 "D4P BC Scheduled PTE Updates"
                 ToolTip = 'Cancel the selected scheduled update.';
                 trigger OnAction()
                 var
-                    CancelConfirmQst: Label 'Do you want to cancel the scheduled update for %1 v%2?', Comment = '%1 = App Name, %2 = Version';
-                    CancelledMsg: Label 'Scheduled update has been cancelled.';
-                    CannotCancelErr: Label 'Only pending updates can be cancelled.';
+                    PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
                 begin
-                    if Rec.Status <> Rec.Status::Pending then
-                        Error(CannotCancelErr);
-                    if Confirm(CancelConfirmQst, false, Rec."PTE App Name", Rec."App Version") then begin
-                        Rec.Status := Rec.Status::Cancelled;
-                        Rec.Modify();
-                        Message(CancelledMsg);
-                    end;
+                    PTEUpdateScheduler.CancelScheduledUpdate(Rec);
+                end;
+            }
+
+            action(ScheduleUpdate)
+            {
+                Caption = 'Schedule Update';
+                Image = Planning;
+                ToolTip = 'Schedule a PTE app update for an environment.';
+                trigger OnAction()
+                var
+                    PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
+                begin
+                    PTEUpdateScheduler.ScheduleUpdate();
+                    CurrPage.Update(false);
+                end;
+            }
+            action(OpenJobQueue)
+            {
+                Caption = 'Open Job Queue';
+                Image = Job;
+                ToolTip = 'Open the Job Queue Entry responsible for processing scheduled PTE updates.';
+                trigger OnAction()
+                var
+                    PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
+                begin
+                    PTEUpdateScheduler.OpenJobQueueEntry();
                 end;
             }
         }
         area(Promoted)
         {
+            actionref(ScheduleUpdatePromoted; ScheduleUpdate)
+            {
+            }
             actionref(CancelUpdatePromoted; CancelUpdate)
+            {
+            }
+            actionref(OpenJobQueuePromoted; OpenJobQueue)
             {
             }
         }
@@ -94,18 +120,9 @@ page 62053 "D4P BC Scheduled PTE Updates"
         StatusStyleExpr: Text;
 
     trigger OnAfterGetRecord()
+    var
+        PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
     begin
-        case Rec.Status of
-            Rec.Status::Pending:
-                StatusStyleExpr := Format(PageStyle::Ambiguous);
-            Rec.Status::"In Progress":
-                StatusStyleExpr := Format(PageStyle::AttentionAccent);
-            Rec.Status::Completed:
-                StatusStyleExpr := Format(PageStyle::Favorable);
-            Rec.Status::Failed:
-                StatusStyleExpr := Format(PageStyle::Unfavorable);
-            Rec.Status::Cancelled:
-                StatusStyleExpr := Format(PageStyle::Standard);
-        end;
+        StatusStyleExpr := PTEUpdateScheduler.GetStatusStyleExpr(Rec);
     end;
 }

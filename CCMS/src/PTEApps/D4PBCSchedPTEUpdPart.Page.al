@@ -11,7 +11,6 @@ page 62054 "D4P BC Sched. PTE Upd. Part"
     SourceTable = "D4P BC Scheduled PTE Update";
     SourceTableView = sorting("Entry No.") order(descending);
     Editable = false;
-    DeleteAllowed = true;
 
     layout
     {
@@ -43,19 +42,19 @@ page 62054 "D4P BC Sched. PTE Upd. Part"
     {
         area(Processing)
         {
-            action(DeleteEntry)
+            action(CancelUpdate)
             {
-                Caption = 'Delete';
-                Image = Delete;
-                ToolTip = 'Delete the selected scheduled PTE update entry.';
+                Caption = 'Cancel';
+                Image = Cancel;
+                ToolTip = 'Cancel the selected scheduled update.';
                 trigger OnAction()
+                var
+                    PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
                 begin
-                    if not Confirm('Do you want to delete the selected entry?') then
-                        exit;
-                    Rec.Delete(true);
-                    CurrPage.Update(false);
+                    PTEUpdateScheduler.CancelScheduledUpdate(Rec);
                 end;
             }
+
             action(ScheduleUpdate)
             {
                 Caption = 'Schedule Update';
@@ -65,7 +64,7 @@ page 62054 "D4P BC Sched. PTE Upd. Part"
                 var
                     PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
                 begin
-                    PTEUpdateScheduler.ScheduleUpdate(EnvironmentContext);
+                    PTEUpdateScheduler.ScheduleUpdate(EnvironmentContext, PTEAppNameContext);
                     CurrPage.Update(false);
                 end;
             }
@@ -76,14 +75,9 @@ page 62054 "D4P BC Sched. PTE Upd. Part"
                 ToolTip = 'Open the Job Queue Entry responsible for processing scheduled PTE updates.';
                 trigger OnAction()
                 var
-                    JobQueueEntry: Record "Job Queue Entry";
                     PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
                 begin
-                    PTEUpdateScheduler.EnsureJobQueueExists();
-                    JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
-                    JobQueueEntry.SetRange("Object ID to Run", Codeunit::"D4P BC PTE Update Scheduler");
-                    if JobQueueEntry.FindFirst() then
-                        Page.Run(Page::"Job Queue Entry Card", JobQueueEntry);
+                    PTEUpdateScheduler.OpenJobQueueEntry();
                 end;
             }
         }
@@ -91,26 +85,19 @@ page 62054 "D4P BC Sched. PTE Upd. Part"
 
     var
         EnvironmentContext: Record "D4P BC Environment";
+        PTEAppNameContext: Text[100];
         StatusStyleExpr: Text;
 
-    procedure SetEnvironmentContext(var BCEnvironment: Record "D4P BC Environment")
+    procedure SetContext(var BCEnvironment: Record "D4P BC Environment"; PTEAppName: Text[100])
     begin
         EnvironmentContext := BCEnvironment;
+        PTEAppNameContext := PTEAppName;
     end;
 
     trigger OnAfterGetRecord()
+    var
+        PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
     begin
-        case Rec.Status of
-            Rec.Status::Pending:
-                StatusStyleExpr := Format(PageStyle::Ambiguous);
-            Rec.Status::"In Progress":
-                StatusStyleExpr := Format(PageStyle::AttentionAccent);
-            Rec.Status::Completed:
-                StatusStyleExpr := Format(PageStyle::Favorable);
-            Rec.Status::Failed:
-                StatusStyleExpr := Format(PageStyle::Unfavorable);
-            Rec.Status::Cancelled:
-                StatusStyleExpr := Format(PageStyle::Standard);
-        end;
+        StatusStyleExpr := PTEUpdateScheduler.GetStatusStyleExpr(Rec);
     end;
 }
