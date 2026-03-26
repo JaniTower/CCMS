@@ -93,5 +93,6 @@ table 62003 "D4P BC Installed App"
         {
             Clustered = true;
         }
+        key(Key2; "App Name") { }
     }
 }

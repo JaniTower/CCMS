@@ -222,5 +222,6 @@ table 62002 "D4P BC Environment"
         {
             Clustered = true;
         }
+        key(Key2; Type) { }
     }
 }
