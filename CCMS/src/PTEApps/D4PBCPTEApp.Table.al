@@ -81,31 +81,20 @@ table 62012 "D4P BC PTE App"
         { }
     }
     trigger OnInsert()
+    var
+        PTEAppMgt: Codeunit "D4P BC PTE App Mgt";
     begin
-        if IsNullGuid(Rec."ID") then
-            Rec."ID" := CreateGuid();
+        PTEAppMgt.InitializeId(Rec);
     end;
 
     trigger OnDelete()
     var
-        PTEAppVersion: Record "D4P BC PTE App Version";
-        PTEAppDependency: Record "D4P BC PTE App Dependency";
-        PTEObjectRange: Record "D4P BC PTE Object Range";
+        PTEAppMgt: Codeunit "D4P BC PTE App Mgt";
     begin
-        PTEAppVersion.SetRange("PTE ID", Rec."ID");
-        if not PTEAppVersion.IsEmpty() then
-            PTEAppVersion.DeleteAll(true);
-
-        PTEAppDependency.SetRange("PTE ID", Rec."ID");
-        if not PTEAppDependency.IsEmpty() then
-            PTEAppDependency.DeleteAll(true);
-
-        PTEObjectRange.SetRange("PTE ID", Rec."ID");
-        if not PTEObjectRange.IsEmpty() then
-            PTEObjectRange.DeleteAll(true);
+        PTEAppMgt.DeleteRelatedRecords(Rec);
     end;
 
-    local procedure ClearFieldsOnDevOpsChange()
+    procedure ClearFieldsOnDevOpsChange()
     begin
         Rec."DevOps Organization" := '';
         Rec."DevOps Feed" := '';

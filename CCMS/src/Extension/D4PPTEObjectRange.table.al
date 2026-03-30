@@ -70,8 +70,18 @@ table 62004 "D4P PTE Object Range"
     var
         PTEApp: Record "D4P BC PTE App";
     begin
+        if IsNullGuid(PTEID) then
+            exit;
         if not PTEApp.Get(PTEID) then
             exit;
         Rec."PTE Name" := PTEApp."Name";
+    end;
+
+    procedure OpenPTEApp()
+    var
+        PTEApp: Record "D4P BC PTE App";
+    begin
+        if PTEApp.Get(Rec."PTE ID") then
+            Page.Run(Page::"D4P BC PTE App Card", PTEApp);
     end;
 }

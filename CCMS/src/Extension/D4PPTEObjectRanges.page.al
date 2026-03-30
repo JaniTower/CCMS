@@ -28,9 +28,6 @@ page 62009 "D4P PTE Object Ranges"
 
                     trigger OnValidate()
                     begin
-                        if IsNullGuid(Rec."PTE ID") then
-                            exit;
-
                         Rec.CopyValuesFromApp(Rec."PTE ID");
                     end;
                 }
@@ -61,15 +58,11 @@ page 62009 "D4P PTE Object Ranges"
         {
             action(OpenPteApp)
             {
-                Caption = 'Pte App';
-                ApplicationArea = All;
+                Caption = 'Open PTE App';
                 Image = Open;
                 trigger OnAction()
-                var
-                    PTEApp: Record "D4P BC PTE App";
                 begin
-                    if PTEApp.Get(Rec."PTE ID") then
-                        Page.Run(Page::"D4P BC PTE App Card", PTEApp);
+                    Rec.OpenPTEApp();
                 end;
 
             }

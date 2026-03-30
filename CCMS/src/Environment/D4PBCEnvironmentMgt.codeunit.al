@@ -577,7 +577,6 @@ codeunit 62000 "D4P BC Environment Mgt"
         EntryList: List of [Text];
         EntryName: Text;
         NupkgTempBlob: Codeunit "Temp Blob";
-        NupkgOutStream: OutStream;
         SelectAppErr: Label 'No PTE app selected.';
         SelectVersionErr: Label 'No version selected.';
         DownloadFailedErr: Label 'Failed to download the NuGet package.';

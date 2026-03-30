@@ -8,6 +8,53 @@ codeunit 62009 "D4P BC Nuget Processing"
 {
     Access = Internal;
 
+    procedure DownloadPackageContentAndNotify(PTEAppVersion: Record "D4P BC PTE App Version")
+    var
+        SuccessDownload: Label 'App package has been downloaded.';
+        FailedDownload: Label 'Failed to download app package.';
+    begin
+        if DownloadPackageContent(PTEAppVersion) then
+            Message(SuccessDownload)
+        else
+            Message(FailedDownload);
+    end;
+
+    procedure TestConnectionAndNotify(DevOpsOrganization: Record "D4P BC DevOps Organization")
+    var
+        ConnectionSuccessLbl: Label 'Connection successful.';
+        ConnectionFailedLbl: Label 'Connection failed. Please verify your token and organization settings.';
+    begin
+        if TestConnection(DevOpsOrganization) then
+            Message(ConnectionSuccessLbl)
+        else
+            Message(ConnectionFailedLbl);
+    end;
+
+    procedure RefreshPTEAppVersionsByPTEId(PTEId: Guid)
+    var
+        PTEApp: Record "D4P BC PTE App";
+        VersionsUpdatedMsg: Label 'Versions have been refreshed.';
+    begin
+        if PTEApp.Get(PTEId) then begin
+            GetPTEAppVersions(PTEApp);
+            Message(VersionsUpdatedMsg);
+        end;
+    end;
+
+    procedure GetPTEAppVersionsAndNotify(var PTEApp: Record "D4P BC PTE App")
+    var
+        OldLatestAppVersion: Text;
+        NoNewVersionsFound: Label 'No newer versions were found.';
+        LatestVersionsUpdated: Label 'Latest versions have been updated.';
+    begin
+        OldLatestAppVersion := PTEApp."Latest App Version";
+        GetPTEAppVersions(PTEApp);
+        if PTEApp."Latest App Version" <> OldLatestAppVersion then
+            Message(LatestVersionsUpdated)
+        else
+            Message(NoNewVersionsFound);
+    end;
+
     procedure GetPTEAppVersions(var PTEApp: Record "D4P BC PTE App")
     var
         BCDevOpsUpdate: Interface "D4P BC DevOps Update";

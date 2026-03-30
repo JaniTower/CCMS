@@ -48,4 +48,12 @@ table 62011 "D4P BC DevOps Organization"
     begin
         exit(StrSubstNo('%1-%2', Rec."DevOps Environment".AsInteger(), Rec.ID));
     end;
+
+    procedure ImportToken()
+    var
+        InputToken: Page "D4P BC Input Token";
+    begin
+        if InputToken.RunModal() = Action::OK then
+            IsolatedStorage.Set(GetTokenKey(), InputToken.GetToken());
+    end;
 }

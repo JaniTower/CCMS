@@ -37,18 +37,12 @@ page 62054 "D4P BC PTE App Version Card"
             action(DownloadAppPackage)
             {
                 Caption = 'Download App Package';
-                ApplicationArea = All;
                 Image = Download;
                 trigger OnAction()
                 var
                     NugetProcessing: Codeunit "D4P BC Nuget Processing";
-                    SuccessDownload: Label 'App package has been downloaded.';
-                    FailedDownload: Label 'Failed to download app package.';
                 begin
-                    if NugetProcessing.DownloadPackageContent(Rec) then
-                        Message(SuccessDownload)
-                    else
-                        Message(FailedDownload);
+                    NugetProcessing.DownloadPackageContentAndNotify(Rec);
                 end;
             }
         }

@@ -7,6 +7,7 @@ using D4P.CCMS.Customer;
 using D4P.CCMS.Environment;
 using D4P.CCMS.Extension;
 using D4P.CCMS.Features;
+using D4P.CCMS.Nuget;
 using D4P.CCMS.PTEApps;
 using D4P.CCMS.General;
 using D4P.CCMS.Operations;
@@ -136,6 +137,8 @@ permissionset 62000 "D4P BC ADMIN"
         codeunit "D4P BC Operations Helper" = X,
         codeunit "D4P BC App Registration" = X,
         codeunit "D4P BC PTE Update Scheduler" = X,
+        codeunit "D4P BC Nuget Processing" = X,
+        codeunit "D4P BC PTE App Mgt" = X,
 
         // Reports
         report "D4P Load Data" = X,

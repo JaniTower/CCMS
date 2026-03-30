@@ -36,31 +36,21 @@ page 62050 "D4P BC DevOps Org. List"
             action(ImportToken)
             {
                 Caption = 'Import Token';
-                ApplicationArea = All;
                 Image = CodesList;
                 trigger OnAction()
-                var
-                    InputToken: Page "D4P BC Input Token";
                 begin
-                    if InputToken.RunModal() = Action::OK then
-                        IsolatedStorage.Set(Rec.GetTokenKey(), InputToken.GetToken());
+                    Rec.ImportToken();
                 end;
             }
             action(TestConnection)
             {
                 Caption = 'Test Connection';
-                ApplicationArea = All;
                 Image = ValidateEmailLoggingSetup;
                 trigger OnAction()
                 var
                     NugetProcessing: Codeunit "D4P BC Nuget Processing";
-                    ConnectionSuccessLbl: Label 'Connection successful.';
-                    ConnectionFailedLbl: Label 'Connection failed. Please verify your token and organization settings.';
                 begin
-                    if NugetProcessing.TestConnection(Rec) then
-                        Message(ConnectionSuccessLbl)
-                    else
-                        Message(ConnectionFailedLbl);
+                    NugetProcessing.TestConnectionAndNotify(Rec);
                 end;
             }
         }

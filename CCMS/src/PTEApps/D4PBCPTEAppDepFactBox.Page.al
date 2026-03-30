@@ -16,11 +16,9 @@ page 62062 "D4P BC PTE App Dep. FactBox"
             {
                 field("Dependency Package ID"; Rec."Dependency Package ID")
                 {
-                    ApplicationArea = All;
                 }
                 field("Version Range"; Rec."Version Range")
                 {
-                    ApplicationArea = All;
                 }
             }
         }

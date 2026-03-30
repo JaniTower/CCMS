@@ -78,21 +78,12 @@ page 62052 "D4P BC PTE App Card"
             action(GetLatestVersions)
             {
                 Caption = 'Get Latest Versions';
-                ApplicationArea = All;
                 Image = Refresh;
                 trigger OnAction()
                 var
                     NugetProcessing: Codeunit "D4P BC Nuget Processing";
-                    OldLatestAppVersion: Text;
-                    NoNewVersionsFound: Label 'No newer versions were found.';
-                    LatestVersionsUpdated: Label 'Latest versions have been updated.';
                 begin
-                    OldLatestAppVersion := Rec."Latest App Version";
-                    NugetProcessing.GetPTEAppVersions(Rec);
-                    if Rec."Latest App Version" <> OldLatestAppVersion then
-                        Message(LatestVersionsUpdated)
-                    else
-                        Message(NoNewVersionsFound);
+                    NugetProcessing.GetPTEAppVersionsAndNotify(Rec);
                 end;
             }
         }
@@ -102,7 +93,6 @@ page 62052 "D4P BC PTE App Card"
             {
                 Caption = 'Object Ranges';
                 ToolTip = 'View and edit per tenant extension object ranges for this app.';
-                ApplicationArea = All;
                 Image = EditLines;
                 trigger OnAction()
                 var

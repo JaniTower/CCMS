@@ -33,10 +33,9 @@ table 62017 "D4P BC PTE Object Range"
             ToolTip = 'Specifies the ending range for the PTE app.';
             trigger OnValidate()
             var
-                RangeToErr: Label 'Range To must be greater than or equal to Range From.';
+                PTEAppMgt: Codeunit "D4P BC PTE App Mgt";
             begin
-                if Rec."Range To" < Rec."Range From" then
-                    Error(RangeToErr);
+                PTEAppMgt.ValidateRangeTo(Rec);
             end;
         }
     }

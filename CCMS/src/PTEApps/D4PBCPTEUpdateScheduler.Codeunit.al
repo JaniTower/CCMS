@@ -318,8 +318,10 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
             exit('');
 
         repeat
+            DepPTEApp.SetLoadFields("ID", "Name");
             DepPTEApp.SetRange("NuGet Package Name", PTEAppDependency."Dependency Package ID");
-            DepPTEApp.FindFirst();
+            if not DepPTEApp.FindFirst() then
+                continue;
 
             ScheduledUpdate.Init();
             ScheduledUpdate."Customer No." := BCEnvironment."Customer No.";
@@ -384,6 +386,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         PTEAppVersion: Record "D4P BC PTE App Version";
         NoMatchingVersionErr: Label 'Dependency ''%1'' requires minimum version %2, but no matching version was found. Please run "Get Latest Versions" on that app first.', Comment = '%1 = App Name, %2 = Min Version';
     begin
+        PTEAppVersion.SetLoadFields("App Version", "Version Sort Key");
         PTEAppVersion.SetRange("PTE ID", DepPTEApp."ID");
         PTEAppVersion.SetCurrentKey("PTE ID", "Version Sort Key");
         PTEAppVersion.SetAscending("Version Sort Key", false);
