@@ -250,6 +250,7 @@ codeunit 62009 "D4P BC Nuget Processing"
         if BCDevOpsUpdate.HasToken(TokenKey) then
             RestClient.SetAuthorizationHeader(BCDevOpsUpdate.GetToken(TokenKey));
         Response := RestClient.Get(BCDevOpsUpdate.GetNugetServiceURL(PTEApp));
+        ShowDebugMessage(StrSubstNo('HTTP %1 - %2', Response.GetHttpStatusCode(), BCDevOpsUpdate.GetNugetServiceURL(PTEApp)), 'NuGet Test Connection');
         exit(Response.GetIsSuccessStatusCode());
     end;
 
