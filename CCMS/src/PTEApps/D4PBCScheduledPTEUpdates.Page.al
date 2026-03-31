@@ -27,6 +27,9 @@ page 62059 "D4P BC Scheduled PTE Updates"
                 field("App Version"; Rec."App Version")
                 {
                 }
+                field("Environment Friendly Name"; Rec."Environment Friendly Name")
+                {
+                }
                 field("Environment Name"; Rec."Environment Name")
                 {
                 }

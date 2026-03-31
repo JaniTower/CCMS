@@ -94,15 +94,48 @@ page 62058 "D4P BC Schedule PTE Dialog"
             {
                 Caption = 'Dependencies';
                 Visible = HasDependencies;
+                grid(DependenciesGrid)
+                {
+                    ShowCaption = false;
+                    GridLayout = Columns;
+                    group(group1)
+                    {
+                        ShowCaption = false;
+                        field(InstallDependencies; InstallDependencies)
+                        {
+                            Caption = 'Install Dependencies';
+                            ToolTip = 'Specifies whether to also schedule the installation of dependency apps before this update.';
+                            trigger OnValidate()
+                            begin
+                                CurrPage.Update();
+                            end;
+                        }
+                        field(DeployIntervalField; DeployIntervalMinutes)
+                        {
+                            Caption = 'Deploy Interval (min.)';
+                            ToolTip = 'Specifies the number of minutes to wait between deploying dependencies and the main update.';
+                            MinValue = 1;
 
-                field(InstallDependencies; InstallDependencies)
-                {
-                    Caption = 'Install Dependencies';
-                    ToolTip = 'Specifies whether to also schedule the installation of dependency apps before this update.';
-                }
-                part(DependenciesPart; "D4P BC PTE App Dep. FactBox")
-                {
-                    Caption = '';
+                            trigger OnValidate()
+                            begin
+                                UpdateMainUpdateDateTime();
+                            end;
+                        }
+                        field(MainUpdateAt; MainUpdateDateTime)
+                        {
+                            Caption = 'Main Update Scheduled At';
+                            ToolTip = 'Specifies when the main update will be deployed, after the dependencies have been installed.';
+                            Editable = false;
+                        }
+                    }
+                    group(group2)
+                    {
+                        ShowCaption = false;
+                        part(DependenciesPart; "D4P BC PTE App Dep. FactBox")
+                        {
+                            Caption = '';
+                        }
+                    }
                 }
             }
             group(Schedule)
@@ -113,11 +146,21 @@ page 62058 "D4P BC Schedule PTE Dialog"
                 {
                     Caption = 'Date';
                     ToolTip = 'Specifies the date to run the update.';
+
+                    trigger OnValidate()
+                    begin
+                        UpdateMainUpdateDateTime();
+                    end;
                 }
                 field(ScheduledTime; ScheduleTime)
                 {
                     Caption = 'Time';
                     ToolTip = 'Specifies the time to run the update.';
+
+                    trigger OnValidate()
+                    begin
+                        UpdateMainUpdateDateTime();
+                    end;
                 }
             }
         }
@@ -161,11 +204,15 @@ page 62058 "D4P BC Schedule PTE Dialog"
         SelectedVersion: Text[50];
         HasDependencies: Boolean;
         InstallDependencies: Boolean;
+        DeployIntervalMinutes: Integer;
+        MainUpdateDateTime: DateTime;
 
     trigger OnOpenPage()
     begin
         ScheduleDate := Today() + 1;
         ScheduleTime := 020000T;
+        DeployIntervalMinutes := 10;
+        UpdateMainUpdateDateTime();
     end;
 
     local procedure LookupEnvironment()
@@ -228,11 +275,33 @@ page 62058 "D4P BC Schedule PTE Dialog"
         CurrPage.DependenciesPart.Page.SetPTEApp(PTEAppContext."ID");
     end;
 
+    local procedure UpdateMainUpdateDateTime()
+    begin
+        MainUpdateDateTime := CreateDateTime(ScheduleDate, ScheduleTime) + DeployIntervalMinutes * 60 * 1000;
+    end;
+
     local procedure CreateScheduledUpdate()
     var
         PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
+        ScheduledInPastErr: Label 'The scheduled time cannot be in the past. Please choose a later time.';
+        MainDate: Date;
+        MainTime: Time;
+        Interval: Integer;
     begin
-        if PTEUpdateScheduler.CreateAndScheduleUpdate(EnvironmentContext, PTEAppContext, SelectedVersion, ScheduleDate, ScheduleTime, InstallDependencies) then
+        if CreateDateTime(ScheduleDate, ScheduleTime) < CurrentDateTime() then
+            Error(ScheduledInPastErr);
+
+        if InstallDependencies and HasDependencies then begin
+            MainDate := DT2Date(MainUpdateDateTime);
+            MainTime := DT2Time(MainUpdateDateTime);
+            Interval := DeployIntervalMinutes;
+        end else begin
+            MainDate := ScheduleDate;
+            MainTime := ScheduleTime;
+            Interval := 0;
+        end;
+
+        if PTEUpdateScheduler.CreateAndScheduleUpdate(EnvironmentContext, PTEAppContext, SelectedVersion, MainDate, MainTime, InstallDependencies, Interval) then
             CurrPage.Close();
     end;
 }

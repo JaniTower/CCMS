@@ -1,6 +1,7 @@
 namespace D4P.CCMS.PTEApps;
 
 using D4P.CCMS.Customer;
+using D4P.CCMS.Environment;
 
 table 62020 "D4P BC Scheduled PTE Update"
 {
@@ -82,6 +83,14 @@ table 62020 "D4P BC Scheduled PTE Update"
         {
             Caption = 'Dependency Entry Nos.';
             ToolTip = 'Specifies the entry numbers of dependency updates that must complete before this update can be processed.';
+        }
+        field(135; "Environment Friendly Name"; Text[100])
+        {
+            Caption = 'Environment Friendly Name';
+            ToolTip = 'Specifies the friendly name of the environment where the PTE will be deployed.';
+            FieldClass = FlowField;
+            CalcFormula = lookup("D4P BC Environment"."Friendly Name" where("Customer No." = field("Customer No."), "Tenant ID" = field("Tenant ID"), Name = field("Environment Name")));
+            Editable = false;
         }
         field(140; "Job Queue Entry ID"; Guid)
         {
