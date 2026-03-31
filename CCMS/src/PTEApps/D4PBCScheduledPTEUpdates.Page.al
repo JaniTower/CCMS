@@ -1,7 +1,5 @@
 namespace D4P.CCMS.PTEApps;
 
-using System.Threading;
-
 page 62059 "D4P BC Scheduled PTE Updates"
 {
     ApplicationArea = All;
@@ -93,16 +91,16 @@ page 62059 "D4P BC Scheduled PTE Updates"
                     CurrPage.Update(false);
                 end;
             }
-            action(OpenJobQueue)
+            action(ViewJobQueueEntry)
             {
-                Caption = 'Open Job Queue';
+                Caption = 'View Job Queue Entry';
                 Image = Job;
-                ToolTip = 'Open the Job Queue Entry responsible for processing scheduled PTE updates.';
+                ToolTip = 'Open the Job Queue Entry for the selected scheduled update.';
                 trigger OnAction()
                 var
                     PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
                 begin
-                    PTEUpdateScheduler.OpenJobQueueEntry();
+                    PTEUpdateScheduler.OpenJobQueueEntryForUpdate(Rec);
                 end;
             }
         }
@@ -114,7 +112,7 @@ page 62059 "D4P BC Scheduled PTE Updates"
             actionref(CancelUpdatePromoted; CancelUpdate)
             {
             }
-            actionref(OpenJobQueuePromoted; OpenJobQueue)
+            actionref(ViewJobQueueEntryPromoted; ViewJobQueueEntry)
             {
             }
         }

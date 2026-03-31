@@ -13,7 +13,21 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
 
     trigger OnRun()
     begin
-        ProcessPendingUpdates();
+        RunScheduledUpdate(Rec);
+    end;
+
+    local procedure RunScheduledUpdate(var JobQueueEntry: Record "Job Queue Entry")
+    var
+        ScheduledUpdate: Record "D4P BC Scheduled PTE Update";
+        EntryNo: Integer;
+    begin
+        if not Evaluate(EntryNo, JobQueueEntry."Parameter String") then
+            exit;
+        if not ScheduledUpdate.Get(EntryNo) then
+            exit;
+        if ScheduledUpdate.Status <> ScheduledUpdate.Status::Pending then
+            exit;
+        ProcessSingleUpdate(ScheduledUpdate);
     end;
 
     procedure ScheduleUpdate()
@@ -46,22 +60,6 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         SchedulePTEDialog.RunModal();
     end;
 
-    procedure ProcessPendingUpdates()
-    var
-        ScheduledUpdate: Record "D4P BC Scheduled PTE Update";
-    begin
-        ScheduledUpdate.SetCurrentKey("Entry No.");
-        ScheduledUpdate.SetAscending("Entry No.", true);
-        ScheduledUpdate.SetRange(Status, ScheduledUpdate.Status::Pending);
-        ScheduledUpdate.SetFilter("Scheduled DateTime", '<=%1', CurrentDateTime());
-        if not ScheduledUpdate.FindSet() then
-            exit;
-
-        repeat
-            ProcessSingleUpdate(ScheduledUpdate);
-        until ScheduledUpdate.Next() = 0;
-    end;
-
     procedure ProcessSingleUpdate(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
     var
         BCEnvironment: Record "D4P BC Environment";
@@ -69,21 +67,23 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         NugetProcessing: Codeunit "D4P BC Nuget Processing";
         EnvironmentMgt: Codeunit "D4P BC Environment Mgt";
         TempBlob: Codeunit "Temp Blob";
-        DataCompression: Codeunit "Data Compression";
         NupkgTempBlob: Codeunit "Temp Blob";
-        NupkgInStream: InStream;
-        AppOutStream: OutStream;
-        EntryList: List of [Text];
-        EntryName: Text;
-        DependencyResult: Integer;
+        DependencyResult: Enum "D4P BC Dep. Check Result";
         DependencyFailedErr: Label 'A dependency update has failed or been cancelled. Check dependency entries: %1', Comment = '%1 = Entry Nos.';
+        EnvironmentNotFoundErr: Label 'Environment not found.';
+        AppVersionNotFoundErr: Label 'PTE App Version not found.';
+        DownloadFailedErr: Label 'Failed to download NuGet package.';
+        NoAppFileErr: Label 'No .app file found in NuGet package.';
     begin
         if ScheduledUpdate."Dependency Entry Nos." <> '' then begin
             DependencyResult := CheckDependenciesReady(ScheduledUpdate);
             case DependencyResult of
-                1:
-                    exit;
-                2:
+                DependencyResult::Waiting:
+                    begin
+                        RescheduleUpdate(ScheduledUpdate, 5);
+                        exit;
+                    end;
+                DependencyResult::Failed:
                     begin
                         FailUpdate(ScheduledUpdate, StrSubstNo(DependencyFailedErr, ScheduledUpdate."Dependency Entry Nos."));
                         exit;
@@ -97,34 +97,23 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         Commit();
 
         if not BCEnvironment.Get(ScheduledUpdate."Customer No.", ScheduledUpdate."Tenant ID", ScheduledUpdate."Environment Name") then begin
-            FailUpdate(ScheduledUpdate, 'Environment not found.');
+            FailUpdate(ScheduledUpdate, EnvironmentNotFoundErr);
             exit;
         end;
 
         if not PTEAppVersion.Get(ScheduledUpdate."PTE App ID", ScheduledUpdate."App Version") then begin
-            FailUpdate(ScheduledUpdate, 'PTE App Version not found.');
+            FailUpdate(ScheduledUpdate, AppVersionNotFoundErr);
             exit;
         end;
 
         if not NugetProcessing.DownloadPackageToStream(PTEAppVersion, NupkgTempBlob) then begin
-            FailUpdate(ScheduledUpdate, 'Failed to download NuGet package.');
+            FailUpdate(ScheduledUpdate, DownloadFailedErr);
             exit;
         end;
 
-        NupkgTempBlob.CreateInStream(NupkgInStream);
-        DataCompression.OpenZipArchive(NupkgInStream, false);
-        DataCompression.GetEntryList(EntryList);
-
-        TempBlob.CreateOutStream(AppOutStream);
-        foreach EntryName in EntryList do
-            if EntryName.EndsWith('.app') then begin
-                DataCompression.ExtractEntry(EntryName, AppOutStream);
-                break;
-            end;
-        DataCompression.CloseZipArchive();
-
+        TempBlob := ExtractAppFromPackage(NupkgTempBlob);
         if not TempBlob.HasValue() then begin
-            FailUpdate(ScheduledUpdate, 'No .app file found in NuGet package.');
+            FailUpdate(ScheduledUpdate, NoAppFileErr);
             exit;
         end;
 
@@ -136,6 +125,29 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         ScheduledUpdate.Status := ScheduledUpdate.Status::Completed;
         ScheduledUpdate."Completed On" := CurrentDateTime();
         ScheduledUpdate.Modify();
+    end;
+
+    local procedure ExtractAppFromPackage(var NupkgTempBlob: Codeunit "Temp Blob"): Codeunit "Temp Blob"
+    var
+        TempBlob: Codeunit "Temp Blob";
+        DataCompression: Codeunit "Data Compression";
+        NupkgInStream: InStream;
+        AppOutStream: OutStream;
+        EntryList: List of [Text];
+        EntryName: Text;
+    begin
+        NupkgTempBlob.CreateInStream(NupkgInStream);
+        DataCompression.OpenZipArchive(NupkgInStream, false);
+        DataCompression.GetEntryList(EntryList);
+
+        TempBlob.CreateOutStream(AppOutStream);
+        foreach EntryName in EntryList do
+            if EntryName.EndsWith('.app') then begin
+                DataCompression.ExtractEntry(EntryName, AppOutStream);
+                break;
+            end;
+        DataCompression.CloseZipArchive();
+        exit(TempBlob);
     end;
 
     [TryFunction]
@@ -152,49 +164,114 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         ScheduledUpdate.Modify();
     end;
 
-    internal procedure EnsureJobQueueExists()
+    procedure CreateJobQueueEntry(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
     var
         JobQueueEntry: Record "Job Queue Entry";
-        JobQueueDescLbl: Label 'CCMS - Process Scheduled PTE Updates';
+        JobQueueDescLbl: Label 'CCMS - PTE Update #%1: %2 v%3', Comment = '%1 = Entry No., %2 = App Name, %3 = Version';
     begin
-        JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
-        JobQueueEntry.SetRange("Object ID to Run", Codeunit::"D4P BC PTE Update Scheduler");
-        if not JobQueueEntry.IsEmpty() then
-            exit;
-
         JobQueueEntry.Init();
         JobQueueEntry.ID := CreateGuid();
+        JobQueueEntry.Status := JobQueueEntry.Status::"On Hold";
         JobQueueEntry."Object Type to Run" := JobQueueEntry."Object Type to Run"::Codeunit;
         JobQueueEntry."Object ID to Run" := Codeunit::"D4P BC PTE Update Scheduler";
-        JobQueueEntry.Description := JobQueueDescLbl;
-        JobQueueEntry."Recurring Job" := true;
-        JobQueueEntry."Run on Mondays" := true;
-        JobQueueEntry."Run on Tuesdays" := true;
-        JobQueueEntry."Run on Wednesdays" := true;
-        JobQueueEntry."Run on Thursdays" := true;
-        JobQueueEntry."Run on Fridays" := true;
-        JobQueueEntry."Run on Saturdays" := true;
-        JobQueueEntry."Run on Sundays" := true;
-        JobQueueEntry."No. of Minutes between Runs" := 15;
-        JobQueueEntry."Earliest Start Date/Time" := CurrentDateTime();
+        JobQueueEntry.Description := CopyStr(StrSubstNo(JobQueueDescLbl, ScheduledUpdate."Entry No.", ScheduledUpdate."PTE App Name", ScheduledUpdate."App Version"), 1, MaxStrLen(JobQueueEntry.Description));
+        JobQueueEntry."Recurring Job" := false;
+        JobQueueEntry."Earliest Start Date/Time" := ScheduledUpdate."Scheduled DateTime";
+        JobQueueEntry."Parameter String" := Format(ScheduledUpdate."Entry No.");
+        JobQueueEntry."Maximum No. of Attempts to Run" := 3;
         JobQueueEntry.Insert(true);
-
         JobQueueEntry.SetStatus(JobQueueEntry.Status::Ready);
+
+        ScheduledUpdate."Job Queue Entry ID" := JobQueueEntry.ID;
+        ScheduledUpdate.Modify();
+    end;
+
+    procedure OpenJobQueueEntryForUpdate(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
+    var
+        JobQueueEntry: Record "Job Queue Entry";
+    begin
+        if IsNullGuid(ScheduledUpdate."Job Queue Entry ID") then
+            exit;
+        if JobQueueEntry.Get(ScheduledUpdate."Job Queue Entry ID") then
+            Page.Run(Page::"Job Queue Entry Card", JobQueueEntry);
+    end;
+
+    procedure RescheduleUpdate(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update"; DelayMinutes: Integer)
+    var
+        JobQueueEntry: Record "Job Queue Entry";
+        OldJobQueueEntryID: Guid;
+    begin
+        OldJobQueueEntryID := ScheduledUpdate."Job Queue Entry ID";
+        Clear(ScheduledUpdate."Job Queue Entry ID");
+        ScheduledUpdate."Scheduled DateTime" := CurrentDateTime() + DelayMinutes * 60 * 1000;
+        ScheduledUpdate.Modify();
+
+        CreateJobQueueEntry(ScheduledUpdate);
+
+        if not IsNullGuid(OldJobQueueEntryID) then
+            if JobQueueEntry.Get(OldJobQueueEntryID) then
+                JobQueueEntry.Delete(true);
+
+        Commit();
     end;
 
     procedure CancelScheduledUpdate(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
     var
         CancelConfirmQst: Label 'Do you want to cancel the scheduled update for %1 v%2?', Comment = '%1 = App Name, %2 = Version';
+        CancelWithDepsConfirmQst: Label 'Do you want to cancel the scheduled update for %1 v%2 and its dependencies?', Comment = '%1 = App Name, %2 = Version';
         CancelledMsg: Label 'Scheduled update has been cancelled.';
+        CancelledWithDepsMsg: Label 'Scheduled update and its dependencies have been cancelled.';
         CannotCancelErr: Label 'Only pending updates can be cancelled.';
+        HasDependencies: Boolean;
     begin
         if ScheduledUpdate.Status <> ScheduledUpdate.Status::Pending then
             Error(CannotCancelErr);
-        if Confirm(CancelConfirmQst, false, ScheduledUpdate."PTE App Name", ScheduledUpdate."App Version") then begin
-            ScheduledUpdate.Status := ScheduledUpdate.Status::Cancelled;
-            ScheduledUpdate.Modify();
+
+        HasDependencies := ScheduledUpdate."Dependency Entry Nos." <> '';
+        if HasDependencies then begin
+            if not Confirm(CancelWithDepsConfirmQst, false, ScheduledUpdate."PTE App Name", ScheduledUpdate."App Version") then
+                exit;
+        end else
+            if not Confirm(CancelConfirmQst, false, ScheduledUpdate."PTE App Name", ScheduledUpdate."App Version") then
+                exit;
+
+        if HasDependencies then
+            CancelDependencyUpdates(ScheduledUpdate);
+
+        CancelSingleUpdate(ScheduledUpdate);
+
+        if HasDependencies then
+            Message(CancelledWithDepsMsg)
+        else
             Message(CancelledMsg);
+    end;
+
+    local procedure CancelSingleUpdate(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
+    var
+        JobQueueEntry: Record "Job Queue Entry";
+    begin
+        if not IsNullGuid(ScheduledUpdate."Job Queue Entry ID") then begin
+            if JobQueueEntry.Get(ScheduledUpdate."Job Queue Entry ID") then
+                JobQueueEntry.Delete(true);
+            Clear(ScheduledUpdate."Job Queue Entry ID");
         end;
+        ScheduledUpdate.Status := ScheduledUpdate.Status::Cancelled;
+        ScheduledUpdate.Modify();
+    end;
+
+    local procedure CancelDependencyUpdates(ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
+    var
+        DepUpdate: Record "D4P BC Scheduled PTE Update";
+        EntryNoList: List of [Text];
+        EntryNoText: Text;
+        EntryNo: Integer;
+    begin
+        EntryNoList := ScheduledUpdate."Dependency Entry Nos.".Split(',');
+        foreach EntryNoText in EntryNoList do
+            if Evaluate(EntryNo, EntryNoText.Trim()) then
+                if DepUpdate.Get(EntryNo) then
+                    if DepUpdate.Status = DepUpdate.Status::Pending then
+                        CancelSingleUpdate(DepUpdate);
     end;
 
     procedure GetStatusStyleExpr(ScheduledUpdate: Record "D4P BC Scheduled PTE Update"): Text
@@ -211,17 +288,6 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
             ScheduledUpdate.Status::Cancelled:
                 exit(Format(PageStyle::Standard));
         end;
-    end;
-
-    procedure OpenJobQueueEntry()
-    var
-        JobQueueEntry: Record "Job Queue Entry";
-    begin
-        EnsureJobQueueExists();
-        JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
-        JobQueueEntry.SetRange("Object ID to Run", Codeunit::"D4P BC PTE Update Scheduler");
-        if JobQueueEntry.FindFirst() then
-            Page.Run(Page::"Job Queue Entry Card", JobQueueEntry);
     end;
 
     procedure CreateAndScheduleUpdate(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; AppVersion: Text[50]; ScheduleDate: Date; ScheduleTime: Time)
@@ -269,7 +335,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         ScheduledUpdate."Dependency Entry Nos." := DependencyEntryNos;
         ScheduledUpdate.Insert(true);
 
-        EnsureJobQueueExists();
+        CreateJobQueueEntry(ScheduledUpdate);
         if IncludeDependencies then
             Message(ScheduledWithDepsMsg, PTEApp."Name", AppVersion, ScheduledDateTime)
         else
@@ -334,6 +400,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
             ScheduledUpdate.Status := ScheduledUpdate.Status::Pending;
             ScheduledUpdate."Created On" := CurrentDateTime();
             ScheduledUpdate.Insert(true);
+            CreateJobQueueEntry(ScheduledUpdate);
 
             if DependencyEntryNos <> '' then
                 DependencyEntryNos += ',';
@@ -343,30 +410,31 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         exit(DependencyEntryNos);
     end;
 
-    local procedure CheckDependenciesReady(ScheduledUpdate: Record "D4P BC Scheduled PTE Update"): Integer
+    local procedure CheckDependenciesReady(ScheduledUpdate: Record "D4P BC Scheduled PTE Update"): Enum "D4P BC Dep. Check Result"
     var
         DepUpdate: Record "D4P BC Scheduled PTE Update";
+        DepCheckResult: Enum "D4P BC Dep. Check Result";
         EntryNoList: List of [Text];
         EntryNoText: Text;
         EntryNo: Integer;
         AllReady: Boolean;
-        MinCompletionBufferMs: BigInteger;
+        CompletionBufferMs: BigInteger;
     begin
         AllReady := true;
-        MinCompletionBufferMs := 10 * 60 * 1000;
+        CompletionBufferMs := 10 * 60 * 1000; // 10-minute buffer after dependency completion to allow deployment to settle
         EntryNoList := ScheduledUpdate."Dependency Entry Nos.".Split(',');
 
         foreach EntryNoText in EntryNoList do begin
             if Evaluate(EntryNo, EntryNoText.Trim()) then begin
                 if not DepUpdate.Get(EntryNo) then
-                    exit(2);
+                    exit(DepCheckResult::Failed);
 
                 case DepUpdate.Status of
                     DepUpdate.Status::Failed,
                     DepUpdate.Status::Cancelled:
-                        exit(2);
+                        exit(DepCheckResult::Failed);
                     DepUpdate.Status::Completed:
-                        if (CurrentDateTime() - DepUpdate."Completed On") < MinCompletionBufferMs then
+                        if (CurrentDateTime() - DepUpdate."Completed On") < CompletionBufferMs then
                             AllReady := false;
                     DepUpdate.Status::Pending,
                     DepUpdate.Status::"In Progress":
@@ -376,9 +444,9 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         end;
 
         if AllReady then
-            exit(0)
+            exit(DepCheckResult::Ready)
         else
-            exit(1);
+            exit(DepCheckResult::Waiting);
     end;
 
     local procedure GetVersionFromRange(MinVersion: Text; var DepPTEApp: Record "D4P BC PTE App"): Text[50]

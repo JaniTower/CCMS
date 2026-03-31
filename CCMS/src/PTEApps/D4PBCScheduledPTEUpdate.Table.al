@@ -83,6 +83,11 @@ table 62020 "D4P BC Scheduled PTE Update"
             Caption = 'Dependency Entry Nos.';
             ToolTip = 'Specifies the entry numbers of dependency updates that must complete before this update can be processed.';
         }
+        field(140; "Job Queue Entry ID"; Guid)
+        {
+            Caption = 'Job Queue Entry ID';
+            ToolTip = 'Specifies the Job Queue Entry that will process this scheduled update.';
+        }
     }
 
     keys

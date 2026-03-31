@@ -1,7 +1,6 @@
 namespace D4P.CCMS.PTEApps;
 
 using D4P.CCMS.Environment;
-using System.Threading;
 
 page 62060 "D4P BC Sched. PTE Upd. Part"
 {
@@ -70,18 +69,6 @@ page 62060 "D4P BC Sched. PTE Upd. Part"
                 begin
                     PTEUpdateScheduler.ScheduleUpdate(EnvironmentContext, PTEAppNameContext);
                     CurrPage.Update(false);
-                end;
-            }
-            action(OpenJobQueue)
-            {
-                Caption = 'Open Job Queue';
-                Image = Job;
-                ToolTip = 'Open the Job Queue Entry responsible for processing scheduled PTE updates.';
-                trigger OnAction()
-                var
-                    PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
-                begin
-                    PTEUpdateScheduler.OpenJobQueueEntry();
                 end;
             }
         }
