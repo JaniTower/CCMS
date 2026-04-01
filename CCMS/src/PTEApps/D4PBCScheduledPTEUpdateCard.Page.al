@@ -1,33 +1,28 @@
 namespace D4P.CCMS.PTEApps;
 
-page 62059 "D4P BC Scheduled PTE Updates"
+page 62063 "D4P BC Sched. PTE Update Card"
 {
     ApplicationArea = All;
-    Caption = 'D365BC Scheduled PTE Updates';
-    PageType = List;
+    Caption = 'D365BC Scheduled PTE Update Card';
+    DataCaptionExpression = 'PTE Update Card';
+    PageType = Card;
     SourceTable = "D4P BC Scheduled PTE Update";
-    SourceTableView = sorting("Entry No.") order(descending);
     Editable = false;
     InsertAllowed = false;
     ModifyAllowed = false;
-    CardPageId = "D4P BC Sched. PTE Update Card";
 
     layout
     {
         area(Content)
         {
-            repeater(General)
+            group(General)
             {
+                Caption = 'General';
+
                 field("PTE App Name"; Rec."PTE App Name")
                 {
                 }
                 field("App Version"; Rec."App Version")
-                {
-                }
-                field("Environment Friendly Name"; Rec."Environment Friendly Name")
-                {
-                }
-                field("Scheduled DateTime"; Rec."Scheduled DateTime")
                 {
                 }
                 field(Status; Rec.Status)
@@ -37,7 +32,78 @@ page 62059 "D4P BC Scheduled PTE Updates"
                 field("Scheduled By"; Rec."Scheduled By")
                 {
                 }
+            }
+            group(Environment)
+            {
+                Caption = 'Environment';
+
+                field("Environment Friendly Name"; Rec."Environment Friendly Name")
+                {
+                }
+                field("Environment Name"; Rec."Environment Name")
+                {
+                }
+                field("Customer No."; Rec."Customer No.")
+                {
+                }
+                field("Tenant ID"; Rec."Tenant ID")
+                {
+                }
+            }
+            group(Schedule)
+            {
+                Caption = 'Schedule';
+
+                field("Scheduled DateTime"; Rec."Scheduled DateTime")
+                {
+                }
+                field("Created On"; Rec."Created On")
+                {
+                }
+                field("Started On"; Rec."Started On")
+                {
+                }
+                field("Completed On"; Rec."Completed On")
+                {
+                }
+                field("Deployed On"; Rec."Deployed On")
+                {
+                }
+            }
+            group(Result)
+            {
+                Caption = 'Result';
+
+                field("Error Message"; Rec."Error Message")
+                {
+                    MultiLine = true;
+                }
                 field("Email Sent"; Rec."Email Sent")
+                {
+                }
+                field("Email Error"; Rec."Email Error")
+                {
+                    MultiLine = true;
+                    Visible = Rec."Email Error" <> '';
+                }
+            }
+            group(Technical)
+            {
+                Caption = 'Technical';
+
+                field("PTE App ID"; Rec."PTE App ID")
+                {
+                }
+                field("Job Queue Entry ID"; Rec."Job Queue Entry ID")
+                {
+                }
+                field("Operation ID"; Rec."Operation ID")
+                {
+                }
+                field("Verification Attempts"; Rec."Verification Attempts")
+                {
+                }
+                field("Dependency Entry Nos."; Rec."Dependency Entry Nos.")
                 {
                 }
             }
@@ -53,25 +119,12 @@ page 62059 "D4P BC Scheduled PTE Updates"
                 Caption = 'Cancel Update';
                 Image = Cancel;
                 ToolTip = 'Cancel the selected scheduled update.';
+                Visible = (Rec.Status = Rec.Status::Pending);
                 trigger OnAction()
                 var
                     PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
                 begin
                     PTEUpdateScheduler.CancelScheduledUpdate(Rec);
-                end;
-            }
-
-            action(ScheduleUpdate)
-            {
-                Caption = 'Schedule Update';
-                Image = Planning;
-                ToolTip = 'Schedule a PTE app update for an environment.';
-                trigger OnAction()
-                var
-                    PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
-                begin
-                    PTEUpdateScheduler.ScheduleUpdate();
-                    CurrPage.Update(false);
                 end;
             }
             action(ViewJobQueueEntry)
@@ -103,10 +156,10 @@ page 62059 "D4P BC Scheduled PTE Updates"
         }
         area(Promoted)
         {
-            actionref(ScheduleUpdatePromoted; ScheduleUpdate)
+            actionref(CancelUpdatePromoted; CancelUpdate)
             {
             }
-            actionref(CancelUpdatePromoted; CancelUpdate)
+            actionref(VerifyDeploymentPromoted; VerifyDeployment)
             {
             }
         }

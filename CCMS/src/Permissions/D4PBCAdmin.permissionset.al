@@ -117,12 +117,14 @@ permissionset 62000 "D4P BC ADMIN"
         page "D4P BC PTE App Version Card" = X,
         page "D4P PTE App Versions FactBox" = X,
         page "D4P BC PTE App Dep. FactBox" = X,
+        page "D4P BC PTE Sched. Dep. Part" = X,
         page "D4P BC PTE Object Range" = X,
         page "D4P BC PTE Obj. Ranges FactBox" = X,
         page "D4P BC Admin Headline" = X,
         page "D4P BC Capacity List" = X,
         page "D4P BC Installed App Card" = X,
         page "D4P BC Scheduled PTE Updates" = X,
+        page "D4P BC Sched. PTE Update Card" = X,
         page "D4P BC Sched. PTE Upd. Part" = X,
         page "D4P BC Schedule PTE Dialog" = X,
 
@@ -138,6 +140,7 @@ permissionset 62000 "D4P BC ADMIN"
         codeunit "D4P BC App Registration" = X,
         codeunit "D4P BC PTE Update Scheduler" = X,
         codeunit "D4P BC PTE Deploy Verifier" = X,
+        codeunit "D4P BC PTE Update Notifier" = X,
         codeunit "D4P BC Nuget Processing" = X,
         codeunit "D4P BC PTE App Mgt" = X,
 

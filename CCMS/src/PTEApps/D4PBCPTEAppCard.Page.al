@@ -6,6 +6,7 @@ page 62052 "D4P BC PTE App Card"
 {
     ApplicationArea = All;
     Caption = 'D365BC PTE App Card';
+    DataCaptionExpression = Rec."Name";
     PageType = Card;
     SourceTable = "D4P BC PTE App";
 

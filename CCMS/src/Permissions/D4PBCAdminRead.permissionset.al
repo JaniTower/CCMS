@@ -109,8 +109,10 @@ permissionset 62001 "D4P BC ADMIN READ"
         page "D4P BC Capacity List" = X,
         page "D4P BC Installed App Card" = X,
         page "D4P BC Scheduled PTE Updates" = X,
+        page "D4P BC Sched. PTE Update Card" = X,
         page "D4P BC Sched. PTE Upd. Part" = X,
         page "D4P BC PTE App Dep. FactBox" = X,
+        page "D4P BC PTE Sched. Dep. Part" = X,
 
         // Codeunit for reading data
         codeunit "D4P BC Environment Mgt" = X,
@@ -122,6 +124,7 @@ permissionset 62001 "D4P BC ADMIN READ"
         codeunit "D4P BC App Registration" = X,
         codeunit "D4P BC PTE Update Scheduler" = X,
         codeunit "D4P BC PTE Deploy Verifier" = X,
+        codeunit "D4P BC PTE Update Notifier" = X,
         codeunit "D4P BC Nuget Processing" = X,
         codeunit "D4P BC PTE App Mgt" = X,
 

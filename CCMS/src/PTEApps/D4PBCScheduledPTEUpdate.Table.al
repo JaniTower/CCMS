@@ -2,6 +2,8 @@ namespace D4P.CCMS.PTEApps;
 
 using D4P.CCMS.Customer;
 using D4P.CCMS.Environment;
+using System.Security.User;
+using System.Security.AccessControl;
 
 table 62020 "D4P BC Scheduled PTE Update"
 {
@@ -111,6 +113,27 @@ table 62020 "D4P BC Scheduled PTE Update"
         {
             Caption = 'Operation ID';
             ToolTip = 'Specifies the operation ID from the extension deployment status used to verify the deployment result.';
+        }
+        field(180; "Scheduled By"; Code[50])
+        {
+            Caption = 'Scheduled By';
+            DataClassification = EndUserIdentifiableInformation;
+            Editable = false;
+            TableRelation = User."User Name";
+            ValidateTableRelation = false;
+            ToolTip = 'Specifies the user who scheduled this update.';
+        }
+        field(190; "Email Sent"; Boolean)
+        {
+            Caption = 'Email Sent';
+            Editable = false;
+            ToolTip = 'Specifies whether an email notification was sent for this update.';
+        }
+        field(200; "Email Error"; Text[2048])
+        {
+            Caption = 'Email Error';
+            Editable = false;
+            ToolTip = 'Specifies the error message if the email notification failed to send.';
         }
     }
 

@@ -26,6 +26,7 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
     begin
         ScheduledUpdate.SetCurrentKey("Customer No.", "Tenant ID", "Environment Name", "Scheduled DateTime");
         ScheduledUpdate.SetRange(Status, ScheduledUpdate.Status::Processed);
+        ScheduledUpdate.SetLoadFields("Customer No.", "Tenant ID", "Environment Name");
         if not ScheduledUpdate.FindSet() then
             exit;
 
@@ -44,7 +45,7 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
     end;
 
     [TryFunction]
-    local procedure TryVerifyEnvironmentDeployments(var BCEnvironment: Record "D4P BC Environment"; CustomerNo: Code[20]; TenantId: Guid; EnvironmentName: Text[30])
+    procedure TryVerifyEnvironmentDeployments(var BCEnvironment: Record "D4P BC Environment"; CustomerNo: Code[20]; TenantId: Guid; EnvironmentName: Text[30])
     var
         ScheduledUpdate: Record "D4P BC Scheduled PTE Update";
         BCTenant: Record "D4P BC Tenant";
@@ -61,6 +62,7 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
         ScheduledUpdate.SetRange("Customer No.", CustomerNo);
         ScheduledUpdate.SetRange("Tenant ID", TenantId);
         ScheduledUpdate.SetRange("Environment Name", EnvironmentName);
+        ScheduledUpdate.SetLoadFields("Entry No.");
         if not ScheduledUpdate.FindSet() then
             exit;
         repeat
@@ -73,7 +75,7 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
                     MatchAndUpdateStatus(ScheduledUpdate, DeploymentStatuses);
     end;
 
-    local procedure MatchAndUpdateStatus(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update"; DeploymentStatuses: JsonArray)
+    procedure MatchAndUpdateStatus(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update"; DeploymentStatuses: JsonArray)
     var
         MatchedStatus: Text;
         MatchedOperationId: Guid;
@@ -91,7 +93,7 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
         ApplyMatchedStatus(ScheduledUpdate, MatchedStatus);
     end;
 
-    local procedure FindStatusByOperationId(OperationId: Guid; DeploymentStatuses: JsonArray): Text
+    procedure FindStatusByOperationId(OperationId: Guid; DeploymentStatuses: JsonArray): Text
     var
         JToken: JsonToken;
         JObject: JsonObject;
@@ -115,7 +117,7 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
         exit('');
     end;
 
-    local procedure FindStatusByNameAndVersion(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update"; DeploymentStatuses: JsonArray; var FoundOperationId: Guid): Text
+    procedure FindStatusByNameAndVersion(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update"; DeploymentStatuses: JsonArray; var FoundOperationId: Guid): Text
     var
         JToken: JsonToken;
         JObject: JsonObject;
@@ -162,7 +164,7 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
         exit(BestMatchStatus);
     end;
 
-    local procedure VersionsMatch(ApiVersion: Text; StoredVersion: Text): Boolean
+    procedure VersionsMatch(ApiVersion: Text; StoredVersion: Text): Boolean
     begin
         if ApiVersion = StoredVersion then
             exit(true);
@@ -173,17 +175,16 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
         exit(false);
     end;
 
-    local procedure ApplyMatchedStatus(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update"; MatchedStatus: Text)
+    procedure ApplyMatchedStatus(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update"; MatchedStatus: Text)
     var
-        MaxVerificationAttempts: Integer;
+        Notifier: Codeunit "D4P BC PTE Update Notifier";
         TimeoutErrMsg: Label 'Deployment verification timed out after %1 attempts. The deployment result is unknown.', Comment = '%1 = Attempts';
     begin
-        MaxVerificationAttempts := 30;
-
         if MatchedStatus = 'Completed' then begin
             ScheduledUpdate.Status := ScheduledUpdate.Status::Completed;
             ScheduledUpdate."Completed On" := CurrentDateTime();
             ScheduledUpdate.Modify();
+            Notifier.SendCompletionNotification(ScheduledUpdate);
             exit;
         end;
 
@@ -192,16 +193,19 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
             ScheduledUpdate."Error Message" := 'Extension deployment failed on the remote environment.';
             ScheduledUpdate."Completed On" := CurrentDateTime();
             ScheduledUpdate.Modify();
+            Notifier.SendCompletionNotification(ScheduledUpdate);
             exit;
         end;
 
         ScheduledUpdate."Verification Attempts" += 1;
-        if ScheduledUpdate."Verification Attempts" > MaxVerificationAttempts then begin
+        if ScheduledUpdate."Verification Attempts" > MaxVerificationAttemptsTok() then begin
             ScheduledUpdate.Status := ScheduledUpdate.Status::Failed;
-            ScheduledUpdate."Error Message" := CopyStr(StrSubstNo(TimeoutErrMsg, MaxVerificationAttempts), 1, MaxStrLen(ScheduledUpdate."Error Message"));
+            ScheduledUpdate."Error Message" := CopyStr(StrSubstNo(TimeoutErrMsg, MaxVerificationAttemptsTok()), 1, MaxStrLen(ScheduledUpdate."Error Message"));
             ScheduledUpdate."Completed On" := CurrentDateTime();
         end;
         ScheduledUpdate.Modify();
+        if ScheduledUpdate.Status = ScheduledUpdate.Status::Failed then
+            Notifier.SendCompletionNotification(ScheduledUpdate);
     end;
 
     procedure VerifySingleUpdate(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
@@ -213,8 +217,8 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
         EnvironmentNotFoundErr: Label 'Environment %1 not found.', Comment = '%1 = Environment Name';
         CompletedMsg: Label 'Deployment verified: installation completed successfully.';
         FailedMsg: Label 'Deployment verified: installation failed on the remote environment.';
-        InProgressMsg: Label 'Deployment is still in progress on the remote environment. Verification attempt %1 of 30.', Comment = '%1 = Attempt count';
-        NotFoundMsg: Label 'No matching deployment found yet on the remote environment. Verification attempt %1 of 30.', Comment = '%1 = Attempt count';
+        InProgressMsg: Label 'Deployment is still in progress on the remote environment. Verification attempt %1 of %2.', Comment = '%1 = Attempt count, %2 = Max attempts';
+        NotFoundMsg: Label 'No matching deployment found yet on the remote environment. Verification attempt %1 of %2.', Comment = '%1 = Attempt count, %2 = Max attempts';
     begin
         if ScheduledUpdate.Status <> ScheduledUpdate.Status::Processed then
             Error(NotProcessedErr, ScheduledUpdate.Status);
@@ -236,15 +240,14 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
                 Message(FailedMsg);
             ScheduledUpdate.Status::Processed:
                 if IsNullGuid(ScheduledUpdate."Operation ID") then
-                    Message(NotFoundMsg, ScheduledUpdate."Verification Attempts")
+                    Message(NotFoundMsg, ScheduledUpdate."Verification Attempts", MaxVerificationAttemptsTok())
                 else
-                    Message(InProgressMsg, ScheduledUpdate."Verification Attempts");
+                    Message(InProgressMsg, ScheduledUpdate."Verification Attempts", MaxVerificationAttemptsTok());
         end;
     end;
 
-    local procedure GetDeploymentStatuses(var BCEnvironment: Record "D4P BC Environment"; var BCTenant: Record "D4P BC Tenant"): JsonArray
+    procedure GetDeploymentStatuses(var BCEnvironment: Record "D4P BC Environment"; var BCTenant: Record "D4P BC Tenant"): JsonArray
     var
-        APIHelper: Codeunit "D4P BC API Helper";
         JObject: JsonObject;
         JToken: JsonToken;
         JArray: JsonArray;
@@ -256,11 +259,12 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
         FailedToGetStatusErr: Label 'Failed to get deployment status for environment %1.', Comment = '%1 = Environment Name';
         NoCompaniesErr: Label 'No companies found in environment %1.', Comment = '%1 = Environment Name';
     begin
-        AuthToken := APIHelper.GetAutomationApiOAuthToken(BCEnvironment."AAD Tenant ID", BCTenant."Client ID", BCTenant.GetClientSecret());
+        InitApiHelper();
+        AuthToken := ApiHelper.GetAutomationApiOAuthToken(BCEnvironment."AAD Tenant ID", BCTenant."Client ID", BCTenant.GetClientSecret());
         if AuthToken.IsEmpty() then
             Error(FailedToObtainTokenErr);
 
-        if not APIHelper.SendAutomationAPIRequest(
+        if not ApiHelper.SendAutomationAPIRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
             'GET', '/api/microsoft/automation/v2.0/companies', '',
             AuthToken, ResponseText)
@@ -278,7 +282,7 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
         CompanyId := JToken.AsValue().AsText();
 
         Clear(JObject);
-        if not APIHelper.SendAutomationAPIRequest(
+        if not ApiHelper.SendAutomationAPIRequest(
             BCEnvironment."AAD Tenant ID", BCEnvironment.Name,
             'GET',
             StrSubstNo('/api/microsoft/automation/v2.0/companies(%1)/extensionDeploymentStatus', CompanyId),
@@ -311,12 +315,12 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
         JobQueueEntry."Object ID to Run" := Codeunit::"D4P BC PTE Deploy Verifier";
         JobQueueEntry.Description := JobQueueDescLbl;
         JobQueueEntry."Recurring Job" := true;
-        JobQueueEntry."No. of Minutes between Runs" := 2;
+        JobQueueEntry."No. of Minutes between Runs" := VerificationJobIntervalMinTok();
         JobQueueEntry.Insert(true);
         JobQueueEntry.SetStatus(JobQueueEntry.Status::Ready);
     end;
 
-    local procedure ShowDebugMessage(ResponseText: Text; ActionName: Text)
+    procedure ShowDebugMessage(ResponseText: Text; ActionName: Text)
     var
         BCSetup: Record "D4P BC Setup";
         DebugMsg: Label 'DEBUG - %1:\%2', Comment = '%1 = Context, %2 = Message body';
@@ -325,4 +329,34 @@ codeunit 62019 "D4P BC PTE Deploy Verifier"
             if BCSetup."Debug Mode" then
                 Message(DebugMsg, ActionName, ResponseText);
     end;
+
+    procedure MaxVerificationAttemptsTok(): Integer
+    begin
+        exit(30);
+    end;
+
+    procedure VerificationJobIntervalMinTok(): Integer
+    begin
+        exit(2);
+    end;
+
+    procedure SetApiHelper(NewApiHelper: Interface "D4P BC IApi Helper")
+    begin
+        ApiHelper := NewApiHelper;
+        ApiHelperInitialized := true;
+    end;
+
+    local procedure InitApiHelper()
+    var
+        DefaultHelper: Codeunit "D4P BC API Helper";
+    begin
+        if not ApiHelperInitialized then begin
+            ApiHelper := DefaultHelper;
+            ApiHelperInitialized := true;
+        end;
+    end;
+
+    var
+        ApiHelper: Interface "D4P BC IApi Helper";
+        ApiHelperInitialized: Boolean;
 }

@@ -4,9 +4,10 @@ using D4P.CCMS.Setup;
 using D4P.CCMS.Tenant;
 using System.Security.Authentication;
 
-codeunit 62049 "D4P BC API Helper"
+codeunit 62049 "D4P BC API Helper" implements "D4P BC IApi Helper"
 {
     Access = Internal;
+
 
     procedure SendAdminAPIRequest(var BCTenant: Record "D4P BC Tenant"; Method: Text; Endpoint: Text; RequestBody: Text; var ResponseText: Text): Boolean
     var

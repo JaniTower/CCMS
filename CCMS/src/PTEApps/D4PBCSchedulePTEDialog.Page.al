@@ -6,7 +6,7 @@ using D4P.CCMS.Tenant;
 page 62058 "D4P BC Schedule PTE Dialog"
 {
     ApplicationArea = All;
-    DataCaptionExpression = 'Schedule PTE Update';
+    Caption = 'Schedule PTE Update';
     PageType = Card;
     Editable = true;
     InsertAllowed = false;
@@ -58,7 +58,6 @@ page 62058 "D4P BC Schedule PTE Dialog"
             group(App)
             {
                 Caption = 'PTE App';
-                Editable = not AppIsSet;
 
                 field(AppName; SelectedAppName)
                 {
@@ -89,54 +88,6 @@ page 62058 "D4P BC Schedule PTE Dialog"
                     end;
                 }
             }
-            group(DependenciesGroup)
-            {
-                Caption = 'Dependencies';
-                Visible = HasDependencies;
-                grid(DependenciesGrid)
-                {
-                    ShowCaption = false;
-                    GridLayout = Columns;
-                    group(group1)
-                    {
-                        ShowCaption = false;
-                        field(InstallDependencies; InstallDependencies)
-                        {
-                            Caption = 'Install Dependencies';
-                            ToolTip = 'Specifies whether to also schedule the installation of dependency apps before this update.';
-                            trigger OnValidate()
-                            begin
-                                CurrPage.Update();
-                            end;
-                        }
-                        field(DeployIntervalField; DeployIntervalMinutes)
-                        {
-                            Caption = 'Deploy Interval (min.)';
-                            ToolTip = 'Specifies the number of minutes to wait between deploying dependencies and the main update.';
-                            MinValue = 1;
-
-                            trigger OnValidate()
-                            begin
-                                UpdateMainUpdateDateTime();
-                            end;
-                        }
-                        field(MainUpdateAt; MainUpdateDateTime)
-                        {
-                            Caption = 'Main Update Scheduled At';
-                            ToolTip = 'Specifies when the main update will be deployed, after the dependencies have been installed.';
-                            Editable = false;
-                        }
-                    }
-                    group(group2)
-                    {
-                        ShowCaption = false;
-                        part(DependenciesPart; "D4P BC PTE App Dep. FactBox")
-                        {
-                            Caption = '';
-                        }
-                    }
-                }
-            }
             group(Schedule)
             {
                 Caption = 'Schedule';
@@ -162,6 +113,29 @@ page 62058 "D4P BC Schedule PTE Dialog"
                     end;
                 }
             }
+
+            group(Dependencies)
+            {
+                Caption = 'Dependencies';
+                Visible = HasDependencies;
+
+                field(DeployIntervalField; DeployIntervalMinutes)
+                {
+                    Caption = 'Deploy Interval (min.)';
+                    ToolTip = 'Specifies the number of minutes to wait between deploying dependencies and the main update.';
+                    MinValue = 1;
+
+                    trigger OnValidate()
+                    begin
+                        UpdateMainUpdateDateTime();
+                    end;
+                }
+                part(DependenciesPart; "D4P BC PTE Sched. Dep. Part")
+                {
+                    Caption = '';
+                }
+            }
+
         }
     }
 
@@ -202,7 +176,6 @@ page 62058 "D4P BC Schedule PTE Dialog"
         SelectedTenantName: Text[100];
         SelectedVersion: Text[50];
         HasDependencies: Boolean;
-        InstallDependencies: Boolean;
         DeployIntervalMinutes: Integer;
         MainUpdateDateTime: DateTime;
 
@@ -271,7 +244,7 @@ page 62058 "D4P BC Schedule PTE Dialog"
     begin
         PTEAppDependency.SetRange("PTE ID", PTEAppContext."ID");
         HasDependencies := not PTEAppDependency.IsEmpty();
-        CurrPage.DependenciesPart.Page.SetPTEApp(PTEAppContext."ID");
+        CurrPage.DependenciesPart.Page.LoadDependencies(PTEAppContext."ID");
     end;
 
     local procedure UpdateMainUpdateDateTime()
@@ -283,6 +256,8 @@ page 62058 "D4P BC Schedule PTE Dialog"
     var
         PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
         ScheduledInPastErr: Label 'The scheduled time cannot be in the past. Please choose a later time.';
+        IncludeDependencies: Boolean;
+        DependencyFilter: Text;
         MainDate: Date;
         MainTime: Time;
         Interval: Integer;
@@ -290,17 +265,38 @@ page 62058 "D4P BC Schedule PTE Dialog"
         if CreateDateTime(ScheduleDate, ScheduleTime) < CurrentDateTime() then
             Error(ScheduledInPastErr);
 
-        if InstallDependencies and HasDependencies then begin
+        IncludeDependencies := HasDependencies and CurrPage.DependenciesPart.Page.HasSelectedDependencies();
+
+        if IncludeDependencies then begin
             MainDate := DT2Date(MainUpdateDateTime);
             MainTime := DT2Time(MainUpdateDateTime);
             Interval := DeployIntervalMinutes;
+            DependencyFilter := BuildDependencyFilter();
         end else begin
             MainDate := ScheduleDate;
             MainTime := ScheduleTime;
             Interval := 0;
         end;
 
-        if PTEUpdateScheduler.CreateAndScheduleUpdate(EnvironmentContext, PTEAppContext, SelectedVersion, MainDate, MainTime, InstallDependencies, Interval) then
+        if PTEUpdateScheduler.CreateAndScheduleUpdate(EnvironmentContext, PTEAppContext, SelectedVersion, MainDate, MainTime, IncludeDependencies, Interval, DependencyFilter) then
             CurrPage.Close();
+    end;
+
+    local procedure BuildDependencyFilter(): Text
+    var
+        TempSchedDep: Record "D4P BC PTE Sched. Dep." temporary;
+        FilterText: Text;
+    begin
+        CurrPage.DependenciesPart.Page.GetSelectedDependencies(TempSchedDep);
+        if not TempSchedDep.FindSet() then
+            exit('');
+
+        repeat
+            if FilterText <> '' then
+                FilterText += '|';
+            FilterText += TempSchedDep."Dependency Package ID";
+        until TempSchedDep.Next() = 0;
+
+        exit(FilterText);
     end;
 }

@@ -16,7 +16,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         RunScheduledUpdate(Rec);
     end;
 
-    local procedure RunScheduledUpdate(var JobQueueEntry: Record "Job Queue Entry")
+    procedure RunScheduledUpdate(var JobQueueEntry: Record "Job Queue Entry")
     var
         ScheduledUpdate: Record "D4P BC Scheduled PTE Update";
         EntryNo: Integer;
@@ -114,7 +114,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         DeployVerifier.EnsureVerificationJobQueueExists();
     end;
 
-    local procedure ExtractAppFromPackage(var NupkgTempBlob: Codeunit "Temp Blob"): Codeunit "Temp Blob"
+    procedure ExtractAppFromPackage(var NupkgTempBlob: Codeunit "Temp Blob"): Codeunit "Temp Blob"
     var
         TempBlob: Codeunit "Temp Blob";
         DataCompression: Codeunit "Data Compression";
@@ -144,11 +144,14 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
     end;
 
     procedure FailUpdate(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update"; ErrorMsg: Text)
+    var
+        Notifier: Codeunit "D4P BC PTE Update Notifier";
     begin
         ScheduledUpdate.Status := ScheduledUpdate.Status::Failed;
         ScheduledUpdate."Error Message" := CopyStr(ErrorMsg, 1, MaxStrLen(ScheduledUpdate."Error Message"));
         ScheduledUpdate."Completed On" := CurrentDateTime();
         ScheduledUpdate.Modify();
+        Notifier.SendCompletionNotification(ScheduledUpdate);
     end;
 
     procedure CreateJobQueueEntry(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
@@ -214,7 +217,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
             Message(CancelledMsg);
     end;
 
-    local procedure CancelSingleUpdate(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
+    procedure CancelSingleUpdate(var ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
     var
         JobQueueEntry: Record "Job Queue Entry";
     begin
@@ -227,7 +230,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         ScheduledUpdate.Modify();
     end;
 
-    local procedure CancelDependencyUpdates(ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
+    procedure CancelDependencyUpdates(ScheduledUpdate: Record "D4P BC Scheduled PTE Update")
     var
         DepUpdate: Record "D4P BC Scheduled PTE Update";
         EntryNoList: List of [Text];
@@ -262,10 +265,10 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
 
     procedure CreateAndScheduleUpdate(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; AppVersion: Text[50]; ScheduleDate: Date; ScheduleTime: Time)
     begin
-        CreateAndScheduleUpdate(BCEnvironment, PTEApp, AppVersion, ScheduleDate, ScheduleTime, false, 0);
+        CreateAndScheduleUpdate(BCEnvironment, PTEApp, AppVersion, ScheduleDate, ScheduleTime, false, 0, '');
     end;
 
-    procedure CreateAndScheduleUpdate(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; AppVersion: Text[50]; ScheduleDate: Date; ScheduleTime: Time; IncludeDependencies: Boolean; DeployIntervalMinutes: Integer): Boolean
+    procedure CreateAndScheduleUpdate(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; AppVersion: Text[50]; ScheduleDate: Date; ScheduleTime: Time; IncludeDependencies: Boolean; DeployIntervalMinutes: Integer; DependencyFilter: Text): Boolean
     var
         ScheduledUpdate: Record "D4P BC Scheduled PTE Update";
         ScheduledMsg: Label 'PTE update for %1 v%2 has been scheduled for %3.', Comment = '%1 = App Name, %2 = Version, %3 = DateTime';
@@ -287,7 +290,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
 
         if IncludeDependencies then begin
             ValidateDependenciesExist(PTEApp);
-            DependencyEntryNos := ScheduleDependencies(BCEnvironment, PTEApp, ScheduledDateTime, DeployIntervalMinutes);
+            DependencyEntryNos := ScheduleDependencies(BCEnvironment, PTEApp, ScheduledDateTime, DeployIntervalMinutes, DependencyFilter);
         end else
             if not WarnIfHasDependencies(PTEApp) then
                 exit(false);
@@ -302,6 +305,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         ScheduledUpdate."Scheduled DateTime" := ScheduledDateTime;
         ScheduledUpdate.Status := ScheduledUpdate.Status::Pending;
         ScheduledUpdate."Created On" := CurrentDateTime();
+        ScheduledUpdate."Scheduled By" := CopyStr(UserId(), 1, MaxStrLen(ScheduledUpdate."Scheduled By"));
         ScheduledUpdate."Dependency Entry Nos." := DependencyEntryNos;
         ScheduledUpdate.Insert(true);
 
@@ -313,7 +317,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         exit(true);
     end;
 
-    local procedure WarnIfHasDependencies(var PTEApp: Record "D4P BC PTE App"): Boolean
+    procedure WarnIfHasDependencies(var PTEApp: Record "D4P BC PTE App"): Boolean
     var
         PTEAppDependency: Record "D4P BC PTE App Dependency";
         DependencyWarningQst: Label 'This app has dependencies that will not be installed. The update will fail if the target environment does not have the required dependencies and versions installed.\\\Do you want to continue?';
@@ -325,13 +329,14 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         exit(Confirm(DependencyWarningQst, false));
     end;
 
-    local procedure ValidateDependenciesExist(var PTEApp: Record "D4P BC PTE App")
+    procedure ValidateDependenciesExist(var PTEApp: Record "D4P BC PTE App")
     var
         PTEAppDependency: Record "D4P BC PTE App Dependency";
         DepPTEApp: Record "D4P BC PTE App";
         DependencyNotFoundErr: Label 'Dependency ''%1'' is not registered in the PTE Apps list. Please add it before scheduling with dependencies.', Comment = '%1 = Dependency Package ID';
     begin
         PTEAppDependency.SetRange("PTE ID", PTEApp."ID");
+        PTEAppDependency.SetLoadFields("Dependency Package ID");
         if not PTEAppDependency.FindSet() then
             exit;
 
@@ -342,7 +347,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         until PTEAppDependency.Next() = 0;
     end;
 
-    local procedure ScheduleDependencies(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; ScheduledDateTime: DateTime; DeployIntervalMinutes: Integer): Text[250]
+    procedure ScheduleDependencies(var BCEnvironment: Record "D4P BC Environment"; var PTEApp: Record "D4P BC PTE App"; ScheduledDateTime: DateTime; DeployIntervalMinutes: Integer; DependencyFilter: Text): Text[250]
     var
         PTEAppDependency: Record "D4P BC PTE App Dependency";
         DepPTEApp: Record "D4P BC PTE App";
@@ -353,6 +358,9 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         DependencyDateTime := ScheduledDateTime - DeployIntervalMinutes * 60 * 1000;
 
         PTEAppDependency.SetRange("PTE ID", PTEApp."ID");
+        if DependencyFilter <> '' then
+            PTEAppDependency.SetFilter("Dependency Package ID", DependencyFilter);
+        PTEAppDependency.SetLoadFields("Dependency Package ID", "Version Range");
         if not PTEAppDependency.FindSet() then
             exit('');
 
@@ -372,6 +380,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
             ScheduledUpdate."Scheduled DateTime" := DependencyDateTime;
             ScheduledUpdate.Status := ScheduledUpdate.Status::Pending;
             ScheduledUpdate."Created On" := CurrentDateTime();
+            ScheduledUpdate."Scheduled By" := CopyStr(UserId(), 1, MaxStrLen(ScheduledUpdate."Scheduled By"));
             ScheduledUpdate.Insert(true);
             CreateJobQueueEntry(ScheduledUpdate);
 
@@ -383,7 +392,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         exit(DependencyEntryNos);
     end;
 
-    local procedure GetVersionFromRange(MinVersion: Text; var DepPTEApp: Record "D4P BC PTE App"): Text[50]
+    procedure GetVersionFromRange(MinVersion: Text; var DepPTEApp: Record "D4P BC PTE App"): Text[50]
     var
         PTEAppVersion: Record "D4P BC PTE App Version";
         NoMatchingVersionErr: Label 'Dependency ''%1'' requires minimum version %2, but no matching version was found. Please run "Get Latest Versions" on that app first.', Comment = '%1 = App Name, %2 = Min Version';
