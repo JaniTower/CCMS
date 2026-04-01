@@ -123,6 +123,14 @@ table 62047 "D4P BC Admin Center Cue"
             FieldClass = FlowField;
             ToolTip = 'Number of registered PTE apps';
         }
+        field(14; "Failed PTE Updates"; Integer)
+        {
+            CalcFormula = count("D4P BC Scheduled PTE Update" where(Status = const(Failed)));
+            Caption = 'Failed PTE Updates';
+            Editable = false;
+            FieldClass = FlowField;
+            ToolTip = 'Number of scheduled PTE updates that have failed';
+        }
     }
 
     keys

@@ -7,9 +7,9 @@ page 62059 "D4P BC Scheduled PTE Updates"
     PageType = List;
     SourceTable = "D4P BC Scheduled PTE Update";
     SourceTableView = sorting("Entry No.") order(descending);
-    Editable = true;
+    Editable = false;
     InsertAllowed = false;
-    ModifyAllowed = true;
+    ModifyAllowed = false;
 
     layout
     {
@@ -74,7 +74,7 @@ page 62059 "D4P BC Scheduled PTE Updates"
         {
             action(CancelUpdate)
             {
-                Caption = 'Cancel';
+                Caption = 'Cancel Update';
                 Image = Cancel;
                 ToolTip = 'Cancel the selected scheduled update.';
                 trigger OnAction()
@@ -103,6 +103,7 @@ page 62059 "D4P BC Scheduled PTE Updates"
                 Caption = 'View Job Queue Entry';
                 Image = Job;
                 ToolTip = 'Open the Job Queue Entry for the selected scheduled update.';
+                Visible = (Rec.Status = Rec.Status::Pending) or (Rec.Status = Rec.Status::"In Progress");
                 trigger OnAction()
                 var
                     PTEUpdateScheduler: Codeunit "D4P BC PTE Update Scheduler";
@@ -123,16 +124,6 @@ page 62059 "D4P BC Scheduled PTE Updates"
                     CurrPage.Update(false);
                 end;
             }
-            action(RefreshList)
-            {
-                Caption = 'Refresh';
-                Image = Refresh;
-                ToolTip = 'Refresh the list to show the latest status of scheduled updates.';
-                trigger OnAction()
-                begin
-                    CurrPage.Update(false);
-                end;
-            }
         }
         area(Promoted)
         {
@@ -140,15 +131,6 @@ page 62059 "D4P BC Scheduled PTE Updates"
             {
             }
             actionref(CancelUpdatePromoted; CancelUpdate)
-            {
-            }
-            actionref(ViewJobQueueEntryPromoted; ViewJobQueueEntry)
-            {
-            }
-            actionref(VerifyDeploymentPromoted; VerifyDeployment)
-            {
-            }
-            actionref(RefreshListPromoted; RefreshList)
             {
             }
         }

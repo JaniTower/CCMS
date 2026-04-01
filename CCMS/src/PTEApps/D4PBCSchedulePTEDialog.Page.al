@@ -6,7 +6,6 @@ using D4P.CCMS.Tenant;
 page 62058 "D4P BC Schedule PTE Dialog"
 {
     ApplicationArea = All;
-    Caption = 'Schedule PTE Update';
     DataCaptionExpression = 'Schedule PTE Update';
     PageType = Card;
     Editable = true;

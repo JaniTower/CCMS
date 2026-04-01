@@ -49,6 +49,11 @@ page 62052 "D4P BC PTE App Card"
                 {
                 }
             }
+            part(ScheduledPTEUpdates; "D4P BC Sched. PTE Upd. Part")
+            {
+                Caption = 'Scheduled PTE Updates';
+                SubPageLink = "PTE App ID" = field("ID");
+            }
         }
 
         area(FactBoxes)

@@ -144,10 +144,6 @@ page 62034 "D4P BC Admin Center Cues"
             {
                 Caption = 'Applications';
 
-                field("PTE Apps Count"; Rec."PTE Apps Count")
-                {
-                    DrillDownPageId = "D4P BC PTE App List";
-                }
                 field("Apps with Available Update"; Rec."Apps with Available Update")
                 {
                     trigger OnDrillDown()
@@ -169,6 +165,15 @@ page 62034 "D4P BC Admin Center Cues"
                         Page.Run(Page::"D4P BC Installed Apps List", BCInstalledApp);
                     end;
                 }
+
+            }
+            cuegroup(PTE)
+            {
+                Caption = 'PTE';
+                field("PTE Apps Count"; Rec."PTE Apps Count")
+                {
+                    DrillDownPageId = "D4P BC PTE App List";
+                }
                 field("Sched. PTE Updates"; Rec."Sched. PTE Updates")
                 {
                     trigger OnDrillDown()
@@ -176,6 +181,16 @@ page 62034 "D4P BC Admin Center Cues"
                         ScheduledPTEUpdate: Record "D4P BC Scheduled PTE Update";
                     begin
                         ScheduledPTEUpdate.SetFilter(Status, '%1|%2', ScheduledPTEUpdate.Status::Pending, ScheduledPTEUpdate.Status::Processed);
+                        Page.Run(Page::"D4P BC Scheduled PTE Updates", ScheduledPTEUpdate);
+                    end;
+                }
+                field("Failed PTE Updates"; Rec."Failed PTE Updates")
+                {
+                    trigger OnDrillDown()
+                    var
+                        ScheduledPTEUpdate: Record "D4P BC Scheduled PTE Update";
+                    begin
+                        ScheduledPTEUpdate.SetRange(Status, ScheduledPTEUpdate.Status::Failed);
                         Page.Run(Page::"D4P BC Scheduled PTE Updates", ScheduledPTEUpdate);
                     end;
                 }
@@ -195,7 +210,7 @@ page 62034 "D4P BC Admin Center Cues"
     begin
         Rec.CalcFields("Tenants >90% Capacity", "Act. Prod Env. No Telemetry", "Act. Sandbox Env. No Telemetry", "Apps with Available Update",
         "Tenants Count", "Customers Count", "Active Environments", "Active Production Environ.", "Active Sandbox Environ.", "Apps w. Av. upd. No Microsoft",
-        "Sched. PTE Updates", "PTE Apps Count");
+        "Sched. PTE Updates", "PTE Apps Count", "Failed PTE Updates");
         Updates7Days := Rec.GetNumberOfEnvironmentsForUpdates(7);
         Updates14Days := Rec.GetNumberOfEnvironmentsForUpdates(14);
     end;
