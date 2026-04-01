@@ -107,13 +107,13 @@ table 62047 "D4P BC Admin Center Cue"
             FieldClass = FlowField;
             ToolTip = 'Number of apps with available updates not published by Microsoft';
         }
-        field(12; "Pending Sched. PTE Updates"; Integer)
+        field(12; "Sched. PTE Updates"; Integer)
         {
-            CalcFormula = count("D4P BC Scheduled PTE Update" where(Status = const(Pending)));
+            CalcFormula = count("D4P BC Scheduled PTE Update" where(Status = filter(Pending | Processed)));
             Caption = 'Scheduled PTE Updates';
             Editable = false;
             FieldClass = FlowField;
-            ToolTip = 'Number of scheduled PTE updates with pending status';
+            ToolTip = 'Number of scheduled PTE updates';
         }
         field(13; "PTE Apps Count"; Integer)
         {

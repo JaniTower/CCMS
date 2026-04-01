@@ -66,6 +66,7 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
         PTEAppVersion: Record "D4P BC PTE App Version";
         NugetProcessing: Codeunit "D4P BC Nuget Processing";
         EnvironmentMgt: Codeunit "D4P BC Environment Mgt";
+        DeployVerifier: Codeunit "D4P BC PTE Deploy Verifier";
         TempBlob: Codeunit "Temp Blob";
         NupkgTempBlob: Codeunit "Temp Blob";
         EnvironmentNotFoundErr: Label 'Environment not found.';
@@ -104,9 +105,13 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
             exit;
         end;
 
-        ScheduledUpdate.Status := ScheduledUpdate.Status::Completed;
-        ScheduledUpdate."Completed On" := CurrentDateTime();
+        ScheduledUpdate."Deployed On" := CurrentDateTime();
+        ScheduledUpdate."Verification Attempts" := 0;
+        ScheduledUpdate."Error Message" := '';
+        ScheduledUpdate.Status := ScheduledUpdate.Status::Processed;
         ScheduledUpdate.Modify();
+
+        DeployVerifier.EnsureVerificationJobQueueExists();
     end;
 
     local procedure ExtractAppFromPackage(var NupkgTempBlob: Codeunit "Temp Blob"): Codeunit "Temp Blob"
@@ -246,6 +251,8 @@ codeunit 62007 "D4P BC PTE Update Scheduler"
                 exit(Format(PageStyle::AttentionAccent));
             ScheduledUpdate.Status::Completed:
                 exit(Format(PageStyle::Favorable));
+            ScheduledUpdate.Status::Processed:
+                exit(Format(PageStyle::StrongAccent));
             ScheduledUpdate.Status::Failed:
                 exit(Format(PageStyle::Unfavorable));
             ScheduledUpdate.Status::Cancelled:

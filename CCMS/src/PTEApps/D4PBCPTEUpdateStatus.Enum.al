@@ -24,4 +24,8 @@ enum 62008 "D4P BC PTE Update Status"
     {
         Caption = 'Cancelled';
     }
+    value(5; Processed)
+    {
+        Caption = 'Processed';
+    }
 }

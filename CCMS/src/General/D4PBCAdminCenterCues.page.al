@@ -169,13 +169,13 @@ page 62034 "D4P BC Admin Center Cues"
                         Page.Run(Page::"D4P BC Installed Apps List", BCInstalledApp);
                     end;
                 }
-                field("Pending Sched. PTE Updates"; Rec."Pending Sched. PTE Updates")
+                field("Sched. PTE Updates"; Rec."Sched. PTE Updates")
                 {
                     trigger OnDrillDown()
                     var
                         ScheduledPTEUpdate: Record "D4P BC Scheduled PTE Update";
                     begin
-                        ScheduledPTEUpdate.SetRange(Status, ScheduledPTEUpdate.Status::Pending);
+                        ScheduledPTEUpdate.SetFilter(Status, '%1|%2', ScheduledPTEUpdate.Status::Pending, ScheduledPTEUpdate.Status::Processed);
                         Page.Run(Page::"D4P BC Scheduled PTE Updates", ScheduledPTEUpdate);
                     end;
                 }
@@ -195,7 +195,7 @@ page 62034 "D4P BC Admin Center Cues"
     begin
         Rec.CalcFields("Tenants >90% Capacity", "Act. Prod Env. No Telemetry", "Act. Sandbox Env. No Telemetry", "Apps with Available Update",
         "Tenants Count", "Customers Count", "Active Environments", "Active Production Environ.", "Active Sandbox Environ.", "Apps w. Av. upd. No Microsoft",
-        "Pending Sched. PTE Updates", "PTE Apps Count");
+        "Sched. PTE Updates", "PTE Apps Count");
         Updates7Days := Rec.GetNumberOfEnvironmentsForUpdates(7);
         Updates14Days := Rec.GetNumberOfEnvironmentsForUpdates(14);
     end;

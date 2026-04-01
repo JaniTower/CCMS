@@ -97,6 +97,21 @@ table 62020 "D4P BC Scheduled PTE Update"
             Caption = 'Job Queue Entry ID';
             ToolTip = 'Specifies the Job Queue Entry that will process this scheduled update.';
         }
+        field(150; "Verification Attempts"; Integer)
+        {
+            Caption = 'Verification Attempts';
+            ToolTip = 'Specifies the number of times the deployment status has been polled.';
+        }
+        field(160; "Deployed On"; DateTime)
+        {
+            Caption = 'Deployed On';
+            ToolTip = 'Specifies when the deployment API call was triggered.';
+        }
+        field(170; "Operation ID"; Guid)
+        {
+            Caption = 'Operation ID';
+            ToolTip = 'Specifies the operation ID from the extension deployment status used to verify the deployment result.';
+        }
     }
 
     keys

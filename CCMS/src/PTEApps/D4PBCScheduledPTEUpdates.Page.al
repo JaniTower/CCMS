@@ -7,9 +7,9 @@ page 62059 "D4P BC Scheduled PTE Updates"
     PageType = List;
     SourceTable = "D4P BC Scheduled PTE Update";
     SourceTableView = sorting("Entry No.") order(descending);
-    Editable = false;
+    Editable = true;
     InsertAllowed = false;
-    ModifyAllowed = false;
+    ModifyAllowed = true;
 
     layout
     {
@@ -60,6 +60,10 @@ page 62059 "D4P BC Scheduled PTE Updates"
                 {
                     Visible = false;
                 }
+                field("Operation ID"; Rec."Operation ID")
+                {
+                    Visible = false;
+                }
             }
         }
     }
@@ -106,6 +110,29 @@ page 62059 "D4P BC Scheduled PTE Updates"
                     PTEUpdateScheduler.OpenJobQueueEntryForUpdate(Rec);
                 end;
             }
+            action(VerifyDeployment)
+            {
+                Caption = 'Verify Deployment';
+                Image = Approve;
+                ToolTip = 'Verify the deployment status of the selected PTE update.';
+                trigger OnAction()
+                var
+                    Verifier: Codeunit "D4P BC PTE Deploy Verifier";
+                begin
+                    Verifier.VerifySingleUpdate(Rec);
+                    CurrPage.Update(false);
+                end;
+            }
+            action(RefreshList)
+            {
+                Caption = 'Refresh';
+                Image = Refresh;
+                ToolTip = 'Refresh the list to show the latest status of scheduled updates.';
+                trigger OnAction()
+                begin
+                    CurrPage.Update(false);
+                end;
+            }
         }
         area(Promoted)
         {
@@ -116,6 +143,12 @@ page 62059 "D4P BC Scheduled PTE Updates"
             {
             }
             actionref(ViewJobQueueEntryPromoted; ViewJobQueueEntry)
+            {
+            }
+            actionref(VerifyDeploymentPromoted; VerifyDeployment)
+            {
+            }
+            actionref(RefreshListPromoted; RefreshList)
             {
             }
         }
